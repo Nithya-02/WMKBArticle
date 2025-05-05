@@ -13,7 +13,6 @@ AD_SERVER = 'ldap://192.168.86.239'
 AD_DOMAIN = 'ML.com' 
 
 #DB Configuration
-# MySQL connection
 db = mysql.connector.connect(
     host="localhost",
     user="root",
@@ -55,7 +54,7 @@ def login():
             session['username'] = username
             session['cn'] = cn  
 
-            return redirect(url_for('submit'))
+            return redirect(url_for('homepage'))
         
         except Exception as e:
             message="Failed to Login! Invalid AD credentials"
@@ -111,6 +110,12 @@ def submit():
         return render_template('form.html',name=cn_name, message="Form submitted successfully!")
 
     return render_template('form.html', name=cn_name)
+
+@app.route('/home')
+def homepage():
+    if 'cn' not in session:
+        return redirect(url_for('login'))
+    return render_template('HomePage.html', name=session['cn'])
 
 if __name__ == '__main__':
     app.run(debug=True)
