@@ -74,7 +74,7 @@ def admin():
             cursor.execute("UPDATE ApproveKBArticle SET status = 'approved' WHERE id = %s", (record_id,))
             db.commit()
         elif action == 'reject':
-            cursor.execute("DELETE FROM ApproveKBArticle WHERE id = %s", (record_id,))
+            cursor.execute("UPDATE ApproveKBArticle SET status = 'rejected' WHERE id = %s", (record_id,))
             db.commit()
 
     cursor.execute("SELECT * FROM ApproveKBArticle")
@@ -97,7 +97,8 @@ def submit():
         url = request.form['url']
         file = request.files['file']
         
-        if file:
+        filename = None
+        if file and file.filename != '':
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
@@ -107,15 +108,32 @@ def submit():
         cursor.execute(sql, val)
         db.commit()
         
-        return render_template('form.html',name=cn_name, message="Form submitted successfully!")
+        return render_template('myarticles.html',name=cn_name)
 
     return render_template('form.html', name=cn_name)
+
+@app.route('/my_articles')
+def my_articles():
+    if 'cn' not in session:
+        return redirect(url_for('login'))
+
+    cn_name = session['cn']
+    cursor.execute("SELECT * FROM ApproveKBArticle WHERE name = %s", (cn_name,))
+    records = cursor.fetchall()
+
+    return render_template('myarticles.html', records=records, name=cn_name)
 
 @app.route('/home')
 def homepage():
     if 'cn' not in session:
         return redirect(url_for('login'))
     return render_template('HomePage.html', name=session['cn'])
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

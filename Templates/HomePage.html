@@ -12,12 +12,25 @@ body {
   top: 0;
   width: 100%;
   background-color: #f4f4f4;
-  text-align: center;
   font-size: 24px;
   font-weight: bold;
-  padding: 10px;
+  padding: 10px 20px;
   z-index: 1001;
   border-bottom: 1px solid #ccc;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.page-heading .logout-form {
+  position: absolute;
+  right: 60px;
+}
+
+.page-heading .logout-form button {
+  padding: 7px 14px;
+  font-size: 18px;
+  cursor: pointer;
 }
 
 .tab-header {
@@ -54,6 +67,7 @@ body {
   display: none;
   padding: 140px 20px 20px;
   height: 100%;
+  text-align: center;
 }
 </style>
 <script>
@@ -77,17 +91,22 @@ body {
 </head>
 
 <body>
-<div class="page-heading">Knowledge-Base Article Management</div>
-
+    <div class="page-heading">
+        <span>Knowledge-Base Article Management</span>
+        <form class="logout-form" action="{{ url_for('logout') }}" method="post">
+          <button type="submit">Logout</button>
+        </form>
+    </div>
+      
 <div class="tab-header">
     <a class="tablink" onclick="openPage('Home', this)" id="defaultOpen">Home</a>
     <a class="tablink" href="{{ url_for('submit') }}">Add KB Article</a>
-    <a class="tablink" href="{{ url_for('admin') }}">Approve Article</a>
+    <a class="tablink" href="{{ url_for('my_articles') }}">My Articles</a>
+    <a class="tablink" href="{{ url_for('admin') }}">Approve Articles</a>
   </div>
 
 <div id="Home" class="tabcontent">
-    <h3>Home</h3>
-    <p>Welcome {{ name }} to the Home Page!</p>
+    <h1>Welcome {{ name }} to Knowledge-Base Articles Page!</h1>
   </div>
   
 </body>
