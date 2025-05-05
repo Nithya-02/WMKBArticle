@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create KB Article</title>
+</head>
+<body>
+    <h2>Form to Submit KB Article</h2>
+
+    {% if message %}
+        <p style="color: green;">{{ message }}</p>
+    {% endif %}
+
+    <form action="/submit" method="post" enctype="multipart/form-data">
+        Author Name: <input type="text" name="name" value="{{name}}" readonly><br><br>
+        Article Title: <input type="text" name="title" required><br><br>
+        Description: <input type="text" name="description" required><br><br>
+        URL(if Anything related): <input type="url" name="url" required><br><br>
+        Upload File: <input type="file" name="file" required><br><br>
+        <input type="submit" value="Submit">
+    </form>
+    <a href="{{url_for('login')}}">Logout</a>
+</body>
+</html>
