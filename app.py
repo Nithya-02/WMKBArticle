@@ -165,7 +165,7 @@ def submit():
         cursor.execute(sql, val)
         db.commit()
         
-        return render_template('myarticles.html',name=cn_name)
+        return redirect(url_for('my_articles'))
 
     return render_template('form.html', name=cn_name)
 
