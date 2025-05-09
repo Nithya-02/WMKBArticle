@@ -1,10 +1,10 @@
-# Kbarticle
+# Kbarticle Using Flask
 
-To Run the Job:
+**To Run the Job:**
 
 python app.py
 
-Git Commands:
+**Git Commands:**
 
 
 1. git add .
