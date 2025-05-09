@@ -1,90 +1,191 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Panel</title>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
+  <title>Admin Panel</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f7f7f7;
+      margin: 0;
+      padding: 0;
+    }
 
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
+    .header {
+      background-color: #2575fc;
+      padding: 20px;
+      color: white;
+      text-align: center;
+      font-size: 24px;
+    }
 
-        th {
-            background-color: #f2f2f2;
-        }
+    .container {
+      padding: 20px;
+    }
 
-        button {
-            padding: 6px 12px;
-            margin-right: 6px;
-            cursor: pointer;
-        }
+    .home-btn {
+      background-color: #6a11cb;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      text-decoration: none;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: 0.3s;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
 
-        .approve-btn {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-        }
+    .home-btn:hover {
+      background-color: #2575fc;
+    }
 
-        .reject-btn {
-            background-color: #f44336;
-            color: white;
-            border: none;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: 10px;
+      overflow: hidden;
+      background-color: #fff;
+    }
+
+    th, td {
+      padding: 15px;
+      text-align: left;
+      border-bottom: 1px solid #ddd;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #2575fc;
+      color: white;
+    }
+
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+
+    .approve-btn {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+
+    .reject-btn {
+      background-color: #f44336;
+      color: white;
+      border: none;
+    }
+
+    .reject-btn:hover,
+    .approve-btn:hover {
+      opacity: 0.8;
+    }
+
+    .approved-btn {
+      background-color: #53b056;
+      color: white;
+      border: none;
+    }
+
+    .change-btn {
+      background-color: #5c537d;
+      color: white;
+      border: none;
+    }
+
+    .reject-comment {
+      width: 100%;
+      display: none;
+      margin-top: 8px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+  </style>
+
+  <script>
+    function showRejectionComment(button) {
+      const form = button.closest('form');
+      const commentInput = form.querySelector('.reject-comment');
+
+      if (commentInput) {
+        if (commentInput.style.display === 'block') {
+          return true; // Allow submit if already shown
         }
-    </style>
+        commentInput.style.display = 'block';
+        commentInput.focus();
+        return false; // Prevent form submit on first click
+      }
+      return true;
+    }
+  </script>
 </head>
 <body>
-    <h2>Admin Panel - Submitted Articles</h2>
+  <div class="header">
+    Admin Panel - Submitted Articles
+  </div>
+
+  <div class="container">
+    <a href="{{ url_for('homepage') }}" class="home-btn">Go Home</a>
 
     <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Title</th>
-                <th>Description</th>
-                <th>URL</th>
-                <th>Filename</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in records %}
-            <tr>
-                <td>{{ row[0] }}</td>
-                <td>{{ row[1] }}</td>
-                <td>{{ row[2] }}</td>
-                <td>{{ row[3] }}</td>
-                <td><a href="{{ row[4] }}" target="_blank">{{ row[4] }}</a></td>
-                <td>{{ row[5] }}</td>
-                <td>
-                    {% if row[6] == 'approved' %}
-                      {% set status_color = 'blue' %}
-                    {% elif row[6] == 'pending' %}
-                      {% set status_color = 'red' %}
-                    {% endif %}
-                    
-                    <span style="font-weight: bold;">
-                      {{ row[6] }}
-                    </span>
-                  </td>
-                <td>
-                    <form method="post" style="display:inline;">
-                        <input type="hidden" name="record_id" value="{{ row[0] }}">
-                        <button type="submit" name="action" value="approve" class="approve-btn">Approve</button>
-                        <button type="submit" name="action" value="reject" class="reject-btn">Reject</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Title</th>
+          <th>Description</th>
+          <th>URL</th>
+          <th>Filename</th>
+          <th>Status</th>
+          <th>Rejection Comment</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in records %}
+        <tr>
+          <td>{{ row[0] }}</td>
+          <td>{{ row[1] }}</td>
+          <td>{{ row[2] }}</td>
+          <td>{{ row[3] }}</td>
+          <td>{{ row[4] }}</td>
+          <td>{{ row[5] }}</td>
+          <td>{{ row[6] }}</td>
+          <td>{{ row[7] }}</td>
+          <td>
+            <form action="/admin" method="POST">
+              <input type="hidden" name="record_id" value="{{ row[0] }}">
+              {% if row[6] == 'Pending' %}
+                <button type="submit" name="action" value="approve" class="approve-btn">Approve</button>
+                <button type="submit" name="action" value="reject" class="reject-btn" onclick="return showRejectionComment(this)">Reject</button>
+                <input type="text" name="rejection_comment" class="reject-comment" placeholder="Enter rejection comment..." />
+              {% elif row[6] == 'approved' %}
+                <button type="submit" name="action" class="approved-btn" disabled>Approved</button>
+              {% elif row[6] == 'rejected' %}
+                <button type="submit" name="action" class="change-btn" disabled>Change Needed</button>
+              {% endif %}
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
-    <a href="{{url_for('homepage')}}">Return to Home</a>
+  </div>
 </body>
 </html>
