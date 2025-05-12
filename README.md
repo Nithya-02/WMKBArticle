@@ -6,6 +6,7 @@ python app.py
 
 **Git Commands:**
 
+Clone Repo : git clone https://github.com/Nithya-02/Kbarticle.git
 
 1. git add .
 2. git commit -m "add text here"
