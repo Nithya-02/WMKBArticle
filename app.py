@@ -3,8 +3,6 @@ from ldap3 import *
 from werkzeug.utils import secure_filename
 import mysql.connector, os, secrets
 from flask_auditor import FlaskAuditor
-from waitress import serve
-from app import app
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(8)
