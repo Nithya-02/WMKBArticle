@@ -3,6 +3,8 @@ from ldap3 import *
 from werkzeug.utils import secure_filename
 import mysql.connector, os, secrets
 from flask_auditor import FlaskAuditor
+from waitress import serve
+from app import app
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(8)
@@ -19,7 +21,7 @@ def log_login_attempt():
         auditor.log(action_id=action, description=description)
 
 #AD Configuration
-AD_SERVER = 'ldap://172.20.10.6'   
+AD_SERVER = 'ldap://192.168.86.250'   
 AD_DOMAIN = 'ML.com' 
 ADMIN_GROUP = 'Enterprise Admins'
 
