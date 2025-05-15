@@ -2,28 +2,18 @@
 <html>
 <head>
   <title>Admin Panel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.1.3/dist/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      background: #f7f7f7;
-      margin: 0;
-      padding: 0;
-    }
-
     .header {
-      background-color: #2575fc;
       padding: 20px;
-      color: white;
+      color: rgb(0, 0, 0);
       text-align: center;
       font-size: 24px;
     }
 
-    .container {
-      padding: 20px;
-    }
-
     .home-btn {
-      background-color: #6a11cb;
+      background-color: #8162a1;
       color: white;
       border: none;
       padding: 12px 20px;
@@ -37,70 +27,33 @@
     }
 
     .home-btn:hover {
-      background-color: #2575fc;
+      background-color: #a793d3;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      border-radius: 10px;
-      overflow: hidden;
-      background-color: #fff;
+    .container {
+      padding: 20px;
     }
 
-    th, td {
-      padding: 15px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
-      vertical-align: top;
-    }
-
-    th {
-      background-color: #2575fc;
-      color: white;
-    }
-
-    tr:hover {
-      background-color: #f1f1f1;
-    }
-
-    button {
-      padding: 8px 16px;
-      font-size: 14px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-right: 8px;
-    }
-
-    .approve-btn {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-    }
-
-    .reject-btn {
-      background-color: #f44336;
-      color: white;
-      border: none;
-    }
-
-    .reject-btn:hover,
-    .approve-btn:hover {
-      opacity: 0.8;
+    h2 {
+      text-align: center;
     }
 
     .approved-btn {
-      background-color: #53b056;
+      background-color: #4CAF50;
       color: white;
-      border: none;
+      border: 1px solid #4CAF50;
+      font-weight: bold;
     }
-
-    .change-btn {
-      background-color: #5c537d;
+    .rejected-btn {
+      background-color: #f44336;
       color: white;
-      border: none;
+      border: None;
+      font-weight: bold;
     }
-
+    .rejected-btn:hover,
+    .approved-btn:hover {
+      opacity: 0.8;
+    }
     .reject-comment {
       width: 100%;
       display: none;
@@ -110,82 +63,128 @@
       border-radius: 5px;
       font-size: 14px;
     }
-
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    .pending-btn {
+      background-color: #5c537d;
+      color: white;
+      border: None;
+      font-weight: bold;
+    }
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 8px;
     }
   </style>
+</head>
+<body>
+  <div class="container mb-4">
+  <div class="row align-items-center">
+    <div class="col text-center">
+      <h2 class="mb-0 fw-bold"><b>Admin Panel - Submitted Articles</b></h2>
+    </div>
+    <div class="col-auto ms-auto">
+      <a href="{{ url_for('homepage') }}" class="btn btn-dark">Home</a>
+    </div>
+  </div>
+</div>
+
+
+  <div class="container">
+    <div class="table-responsive">
+    <table class="table table-striped table-bordered  table-hover">
+        <thead>
+            <tr>
+            <th>S.No</th>
+            <th>Submitted By</th>
+            <th>Article Title</th>
+            <th>View Article</th>
+            <th>Approval Status</th>
+            <th>Comments(If Rejected)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in records %}
+            <tr>
+            <td>{{ loop.index }}</td>
+            <td>{{ row[1] }}</td>
+            <td><a href="#" class="open-modal" data-url="/view_article/{{ row[0] }}">{{ row[2] }}</a></td>
+            <td><a href="#" class="open-modal" data-url="/view_article/{{ row[0] }}">
+                    <i class="bi bi-view-list"></i></a></td>
+            <td>
+                <form action="/admin" method="POST">
+                  <input type="hidden" name="record_id" value="{{ row[0] }}">
+                  {% if row[6] == 'Pending' %}
+                    <button type="submit" name="action" value="approve" class="approved-btn">Approve</button>
+                    <button type="submit" name="action" value="reject" class="rejected-btn" onclick="return showRejectionComment(this)">Reject</button>
+                    <input type="text" name="rejection_comment" class="reject-comment" placeholder="Enter rejection comment..." />
+                  {% elif row[6] == 'approved' %}
+                    <button type="submit" name="action" class="approved-btn" disabled>Approved</button>
+                  {% elif row[6] == 'rejected' %}
+                    <button type="submit" name="action" class="pending-btn" disabled>Change Needed</button>
+                  {% endif %}
+                </form>
+            </td>
+            <td>{{ row[7] or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    </div>
+    <!-- Modal -->
+    <div class="modal fade" id="contentModal" tabindex="-1" aria-labelledby="contentModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">KB Article Information</h5>
+          </div>
+          <div class="modal-body" id="modalContent">
+            Loading...
+          </div>
+        </div>
+      </div>
+    </div>
 
   <script>
     function showRejectionComment(button) {
       const form = button.closest('form');
       const commentInput = form.querySelector('.reject-comment');
+      const approveBtn = form.querySelector('.approved-btn');
 
       if (commentInput) {
         if (commentInput.style.display === 'block') {
-          return true; // Allow submit if already shown
+          return true; // Allow form submit on second click
         }
+        // Show comment input
         commentInput.style.display = 'block';
         commentInput.focus();
+        // Hide the approve button
+        if (approveBtn) {
+          approveBtn.style.display = 'none';
+        }
         return false; // Prevent form submit on first click
       }
       return true;
     }
   </script>
-</head>
-<body>
-  <div class="header">
-    Admin Panel - Submitted Articles
-  </div>
-
-  <div class="container">
-    <a href="{{ url_for('homepage') }}" class="home-btn">Go Home</a>
-
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>Title</th>
-          <th>Description</th>
-          <th>URL</th>
-          <th>Filename</th>
-          <th>Status</th>
-          <th>Rejection Comment</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in records %}
-        <tr>
-          <td>{{ row[0] }}</td>
-          <td>{{ row[1] }}</td>
-          <td>{{ row[2] }}</td>
-          <td>{{ row[3] }}</td>
-          <td>{{ row[4] }}</td>
-          <td>{{ row[5] }}</td>
-          <td>{{ row[6] }}</td>
-          <td>{{ row[7] }}</td>
-          <td>
-            <form action="/admin" method="POST">
-              <input type="hidden" name="record_id" value="{{ row[0] }}">
-              {% if row[6] == 'Pending' %}
-                <button type="submit" name="action" value="approve" class="approve-btn">Approve</button>
-                <button type="submit" name="action" value="reject" class="reject-btn" onclick="return showRejectionComment(this)">Reject</button>
-                <input type="text" name="rejection_comment" class="reject-comment" placeholder="Enter rejection comment..." />
-              {% elif row[6] == 'approved' %}
-                <button type="submit" name="action" class="approved-btn" disabled>Approved</button>
-              {% elif row[6] == 'rejected' %}
-                <button type="submit" name="action" class="change-btn" disabled>Change Needed</button>
-              {% endif %}
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.querySelectorAll('.open-modal').forEach(link => {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const url = this.getAttribute('data-url');
+        
+        fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            const modal = new bootstrap.Modal(document.getElementById('contentModal'));
+            modal.show();
+          });
+      });
+    });
+  </script>
 </body>
 </html>

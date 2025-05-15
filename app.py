@@ -3,6 +3,7 @@ from ldap3 import *
 from werkzeug.utils import secure_filename
 import mysql.connector, os, secrets
 from flask_auditor import FlaskAuditor
+from fuzzywuzzy import fuzz
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(8)
@@ -79,7 +80,7 @@ def login():
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    if 'cn' not in session:
+    if 'cn' not in session or not session.get('is_admin'):
         return redirect(url_for('login'))
 
     if request.method == 'POST':
@@ -107,7 +108,6 @@ def edit_article(article_id):
     # Fetch the article from the database
     cursor.execute("SELECT * FROM ApproveKBArticle WHERE id = %s", (article_id,))
     article = cursor.fetchone()
-
     # Check if the article exists and is rejected
     if not article or article[6] != 'rejected':  # Assuming status is at index 6
         return redirect(url_for('my_articles'))
@@ -117,14 +117,12 @@ def edit_article(article_id):
         description = request.form['description']
         url = request.form['url']
         file = request.files['file']
-
         # Handle file upload
         filename = article[5]  # Assuming filename is at index 5
         if file and file.filename != '':
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
-
         # Update the article in the database with status as 'Pending'
         cursor.execute("""
             UPDATE ApproveKBArticle 
@@ -132,15 +130,13 @@ def edit_article(article_id):
             WHERE id = %s
         """, (title, description, url, filename, article_id))
         db.commit()
-
         # Redirect to the user's articles page
         return redirect(url_for('my_articles'))
 
     # Render the edit form with the article data
     return render_template('edit.html', article=article)
 
-
-#Form Submit
+#Submit Article
 @app.route('/submit', methods=['GET', 'POST'])
 def submit():
     if 'cn' not in session:
@@ -169,6 +165,7 @@ def submit():
 
     return render_template('form.html', name=cn_name)
 
+#My Articles
 @app.route('/my_articles')
 def my_articles():
     if 'cn' not in session:
@@ -179,12 +176,86 @@ def my_articles():
     records = cursor.fetchall()
 
     return render_template('myarticles.html', records=records, name=cn_name)
+ 
+# View Article
+@app.route('/view_article/<int:article_id>')
+def view_article(article_id):
+    if 'cn' not in session:
+        return redirect(url_for('login'))
+
+    cursor.execute("SELECT * FROM ApproveKBArticle WHERE id = %s", (article_id,))
+    article = cursor.fetchone()
+
+    if not article:
+        return redirect(url_for('my_articles')) 
+
+    # Render the edit form with the article data
+    return render_template('view_article.html', article=article)
+
+# Download Article
+@app.route('/uploads/<filename>')
+def download_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+
+# search Article
+def fetch_articles():
+    cursor.execute("SELECT id, title, description FROM ApproveKBArticle WHERE status = 'approved'")
+    results = cursor.fetchall()
+    return [{'id': row[0], 'title': row[1], 'description': row[2]} for row in results]
+
+def calculate_relevance(query, text):
+    query_words = query.lower().split()
+    text = text.lower()
+    score = 0
+    for word in query_words:
+        score += fuzz.partial_ratio(word, text) / 100
+    return score
+
+def search_articles(query):
+    articles = fetch_articles()
+    query = query.strip().lower()
+
+    matches = []
+    for article in articles:
+        title_score = calculate_relevance(query, article['title']) * 2
+        description_score = calculate_relevance(query, article['description'])
+        total_score = title_score + description_score
+
+        if total_score >= 1.5:
+            matches.append({
+                'id': article['id'],
+                'title': article['title'],
+                'description': article['description'],
+                'score': total_score
+            })
+
+    matches.sort(key=lambda x: x['score'], reverse=True)
+    return matches
+
+@app.route('/search')
+def search():
+    query = request.args.get('q', '')
+    if not query:
+        return jsonify({'error': 'Query parameter "q" is required'}), 400
+
+    results = search_articles(query)
+    return jsonify(results)
 
 @app.route('/home')
 def homepage():
     if 'cn' not in session:
         return redirect(url_for('login'))
-    return render_template('HomePage.html', name=session['cn'], is_admin=session.get('is_admin', False))
+
+    name = session['cn']
+    is_admin = session.get('is_admin', False)
+
+    if is_admin:
+        cursor.execute("SELECT * FROM ApproveKBArticle")
+        all_articles = cursor.fetchall()
+    else:
+        all_articles = []
+
+    return render_template('HomePage.html', name=name, is_admin=is_admin, records=all_articles)
 
 @app.route('/logout', methods=['POST'])
 def logout():
