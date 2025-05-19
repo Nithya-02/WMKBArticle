@@ -192,10 +192,10 @@ def view_article(article_id):
     # Render the edit form with the article data
     return render_template('view_article.html', article=article)
 
-# Download Article
-@app.route('/uploads/<filename>')
-def download_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename, as_attachment=True)
+#  View PDF
+@app.route('/view_pdf/<filename>')
+def view_pdf(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # search Article
 def fetch_articles():
