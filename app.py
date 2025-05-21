@@ -20,7 +20,7 @@ def log_login_attempt():
         auditor.log(action_id=action, description=description)
 
 #AD Configuration
-AD_SERVER = 'ldap://192.168.86.250'   
+AD_SERVER = 'ldap://192.168.86.247'   
 AD_DOMAIN = 'ML.com' 
 ADMIN_GROUP = 'Enterprise Admins'
 

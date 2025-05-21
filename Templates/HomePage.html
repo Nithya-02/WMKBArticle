@@ -1,179 +1,160 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body {
-  font-family: Arial, Helvetica, sans-serif;
-}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KB Article - Home</title>
 
-.page-heading {
-  position: fixed;
-  top: 0;
-  width: 100%;
-  background-color: #f4f4f4;
-  font-size: 24px;
-  font-weight: bold;
-  padding: 10px 20px;
-  z-index: 1001;
-  border-bottom: 1px solid #ccc;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
-.page-heading .logout-form {
-  position: absolute;
-  right: 60px;
-}
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css" rel="stylesheet">
 
-.page-heading .logout-form button {
-  padding: 7px 14px;
-  font-size: 18px;
-  cursor: pointer;
-}
-
-.tab-header {
-  position: fixed;
-  top: 50px; 
-  width: 100%;
-  background-color: white;
-  padding: 5px 0;
-  z-index: 1000;
-  text-align: center;
-}
-
-.tablink {
-  display: inline-block;
-  color: black;
-  text-align: center;
-  padding: 14px;
-  text-decoration: none;
-  font-size: 17px;
-  border-radius: 5px;
-  background-color: #eee;
-  border: none;
-  cursor: pointer;
-}
-
-.tablink:hover {
-  background-color: #ddd;
-  color: black;
-}
-
-.tabcontent {
-  border-color: white;
-  color: Black;
-  display: none;
-  padding: 140px 20px 20px;
-  height: 100%;
-  text-align: center;
-}
-
-/* Search styles */
-#searchBox {
-  width: 400px;
-  padding: 10px;
-  font-size: 16px;
-}
-#results {
-  margin-top: 20px;
-  text-align: left;
-  max-width: 800px;
-  margin-left: auto;
-  margin-right: auto;
-}
-.result {
-  border-bottom: 1px solid #ccc;
-  padding: 10px 0;
-}
-.result h3 {
-  margin: 0;
-  color: #007BFF;
-}
-.result p {
-  margin: 5px 0 0;
-}
-</style>
-<script>
-    function openPage(pageName) {
-      var i, tabcontent, tablinks;
-      tabcontent = document.getElementsByClassName("tabcontent");
-      for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
       }
-      tablinks = document.getElementsByClassName("tablink");
-      for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].style.backgroundColor = "";
+
+      .sidebar {
+        width: 280px;
+        background-color: white;
+        height: 100vh;
+        position: fixed;
+        top: 56px; /* height of navbar */
+        left: 0;
+        padding: 1rem;
+        overflow-y: auto;
+        border-right: 1px solid #dee2e6;
       }
-      document.getElementById(pageName).style.display = "block";
+
+      .main-content {
+        margin-left: 280px; /* width of sidebar */
+        margin-top: 56px; /* height of navbar */
+        padding: 1rem;
+        background-color: #f8f9fa;
+        height: calc(100vh - 56px);
+        overflow-y: auto;
+      }
+    .result {
+        border-bottom: 1px solid #ccc;
+        padding: 10px 0;
+        }
+    .result h3 {
+        margin: 0;
+        color: #007BFF;
     }
-
-    window.onload = function() {
-      document.getElementById("defaultOpen").click();
+    .result p {
+        margin: 5px 0 0;
     }
+    </style>
+    <!--Handle Search-->
+    <script>
+        let timeout = null;
+        function handleSearch() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                const query = document.getElementById('searchBox').value.trim();
+                if (query.length < 3) {
+                    document.getElementById('results').innerHTML = '';
+                    return;
+                }
 
-    let timeout = null;
+                fetch(`/search?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const resultsDiv = document.getElementById('results');
+                        resultsDiv.innerHTML = '';
 
-    function handleSearch() {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-            const query = document.getElementById('searchBox').value.trim();
-            if (query.length < 3) {
-                document.getElementById('results').innerHTML = '';
-                return;
-            }
+                        if (data.length === 0) {
+                            resultsDiv.innerHTML = '<p>No results found.</p>';
+                        } else {
+                            data.forEach(item => {
+                                const result = document.createElement('div');
+                                result.className = 'result';
+                                result.innerHTML = `
+                                    <h3>${item.title}</h3>
+                                    <p>${item.description}</p>
+                                    <small>Relevance Score: ${item.score.toFixed(2)}</small>
+                                `;
+                                resultsDiv.appendChild(result);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching search results:', error);
+                    });
+            }, 300); // debounce
+        }
+    </script>
+  </head>
+  <body>
 
-            fetch(`/search?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(data => {
-                    const resultsDiv = document.getElementById('results');
-                    resultsDiv.innerHTML = '';
+    <!-- Top Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
+      <div class="container-fluid">
+        <img src="static/images/wmlogo.png" href="{{ url_for('homepage') }}" style="height: 40px; width: auto;">
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        
+        <div class="collapse navbar-collapse justify-content-center" id="navbarContent">
+            <form class="d-flex mx-auto" style="max-width: 600px; width: 100%" role="search">
+                <input class="form-control me-2" id="searchBox" type="search" placeholder="Search Articles . . . . ." aria-label="Search" onkeyup="handleSearch()">
+            </form>
+        </div>
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('submit') }}">Add KB Article</a>
+            </li>
+            <li class="logout">
+                <form action="{{ url_for('logout') }}" method="post" class="d-inline">
+                    <button type="submit" class="btn btn-link nav-link">Logout</button></form>
+            </li>
+          </ul>
+      </div>
+    </nav>
 
-                    if (data.length === 0) {
-                        resultsDiv.innerHTML = '<p>No results found.</p>';
-                    } else {
-                        data.forEach(item => {
-                            const result = document.createElement('div');
-                            result.className = 'result';
-                            result.innerHTML = `
-                                <h3>${item.title}</h3>
-                                <p>${item.description}</p>
-                                <small>Relevance Score: ${item.score.toFixed(2)}</small>
-                            `;
-                            resultsDiv.appendChild(result);
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching search results:', error);
-                });
-        }, 300); // debounce
-    }
-</script>
-</head>
-
-<body>
-    <div class="page-heading">
-        <span>Knowledge-Base Article Management</span>
-        <form class="logout-form" action="{{ url_for('logout') }}" method="post">
-          <button type="submit">Logout</button>
-        </form>
-    </div>
-      
-    <div class="tab-header">
-        <a class="tablink" onclick="openPage('Home', this)" id="defaultOpen">Home</a>
-        <a class="tablink" href="{{ url_for('submit') }}">Add KB Article</a>
-        <a class="tablink" href="{{ url_for('my_articles') }}">My Articles</a>
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <a class="d-flex align-items-center mb-3 link-dark text-decoration-none">
+        <i class="bi bi-person fs-2 me-2 text-warning"></i>
+        <span class="fs-5 text-success"> {{ name }}</span>
+      </a>
+      <hr>
+      <ul class="nav nav-pills flex-column mb-auto">
+        <li class="nav-item">
+          <a href="{{ url_for('homepage') }}" class="nav-link active text-white" aria-current="page" style="background-color: #154120;">
+            <i class="bi bi-house-door me-2"></i>
+            Home
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('my_articles') }}" class="nav-link link-dark">
+            <i class="bi bi-file-earmark-font me-2"></i>
+            My Articles
+          </a>
+        </li>
         {% if is_admin %}
-          <a class="tablink" href="{{ url_for('admin') }}">Approve Articles</a>
+            <li>
+            <a href="{{ url_for('admin') }}" class="nav-link link-dark">
+                <i class="bi bi-file-earmark-medical me-2"></i>
+                Approve Articles
+            </a>
+            </li>
         {% endif %}
+      </ul>
     </div>
 
-    <div id="Home" class="tabcontent">
-        <h1>Welcome {{ name }} to Knowledge-Base Articles Page!</h1>
-        <input type="text" id="searchBox" placeholder="Enter your query..." onkeyup="handleSearch()" />
+    <!-- Main content -->
+    <div class="main-content">
+      <h2>Knowledge-Base Article Management</h2>
+      <p>Welcome {{ name }} to Knowledge-Base Articles Page!</p>
         <div id="results"></div>
     </div>
-</body>
+
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js"></script>
+  </body>
 </html>
