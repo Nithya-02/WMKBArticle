@@ -105,7 +105,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for row in records %}
+            {% for row in records if row[6] != 'approved' %}
             <tr>
             <td>{{ loop.index }}</td>
             <td>{{ row[1] }}</td>
@@ -119,8 +119,6 @@
                     <button type="submit" name="action" value="approve" class="approved-btn">Approve</button>
                     <button type="submit" name="action" value="reject" class="rejected-btn" onclick="return showRejectionComment(this)">Reject</button>
                     <input type="text" name="rejection_comment" class="reject-comment" placeholder="Enter rejection comment..." />
-                  {% elif row[6] == 'approved' %}
-                    <button type="submit" name="action" class="approved-btn" disabled>Approved</button>
                   {% elif row[6] == 'rejected' %}
                     <button type="submit" name="action" class="pending-btn" disabled>Change Needed</button>
                   {% endif %}

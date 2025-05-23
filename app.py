@@ -192,52 +192,44 @@ def view_article(article_id):
     # Render the edit form with the article data
     return render_template('view_article.html', article=article)
 
+# View Article
+@app.route('/view_myarticle/<int:article_id>')
+def view_myarticle(article_id):
+    if 'cn' not in session:
+        return redirect(url_for('login'))
+
+    cursor.execute("SELECT * FROM ApproveKBArticle WHERE id = %s", (article_id,))
+    article = cursor.fetchone()
+
+    if not article:
+        return redirect(url_for('my_articles')) 
+
+    # Render the edit form with the article data
+    return render_template('view_myarticle.html', article=article)
+
 #  View PDF
 @app.route('/view_pdf/<filename>')
 def view_pdf(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # search Article
-def fetch_articles():
-    cursor.execute("SELECT id, title, description FROM ApproveKBArticle WHERE status = 'approved'")
-    results = cursor.fetchall()
-    return [{'id': row[0], 'title': row[1], 'description': row[2]} for row in results]
-
-def calculate_relevance(query, text):
-    query_words = query.lower().split()
-    text = text.lower()
-    score = 0
-    for word in query_words:
-        score += fuzz.partial_ratio(word, text) / 100
-    return score
-
 def search_articles(query):
-    articles = fetch_articles()
-    query = query.strip().lower()
-
-    matches = []
-    for article in articles:
-        title_score = calculate_relevance(query, article['title']) * 2
-        description_score = calculate_relevance(query, article['description'])
-        total_score = title_score + description_score
-
-        if total_score >= 1.5:
-            matches.append({
-                'id': article['id'],
-                'title': article['title'],
-                'description': article['description'],
-                'score': total_score
-            })
-
-    matches.sort(key=lambda x: x['score'], reverse=True)
-    return matches
+    cursor.execute("""
+        SELECT id, title, description
+        FROM ApproveKBArticle
+        WHERE status = 'approved'
+        AND MATCH(title, description) AGAINST (%s IN NATURAL LANGUAGE MODE)
+        ORDER BY MATCH(title, description) AGAINST (%s IN NATURAL LANGUAGE MODE) DESC
+        LIMIT 20
+    """, (query, query))
+    results = cursor.fetchall()
+    return [{'id': row[0], 'title': row[1]} for row in results]
 
 @app.route('/search')
 def search():
     query = request.args.get('q', '')
     if not query:
         return jsonify({'error': 'Query parameter "q" is required'}), 400
-
     results = search_articles(query)
     return jsonify(results)
 

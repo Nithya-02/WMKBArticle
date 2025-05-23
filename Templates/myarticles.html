@@ -91,7 +91,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for row in records %}
+            {% for row in records if row[6] != 'approved' %}
             <tr>
             <td>{{ loop.index }}</td>
             <td><a href="#" class="open-modal" data-url="/view_article/{{ row[0] }}">{{ row[2] }}</a></td>
@@ -107,10 +107,7 @@
                 {% endif %}
             </td>
             <td>
-                {% if row[6] == 'approved' %}
-                  <a href="#" class="open-modal" data-url="/view_article/{{ row[0] }}">
-                    <button class="approved-btn">Approved</button></a>
-                {% elif row[6] == 'rejected' %}
+                {% if row[6] == 'rejected' %}
                     <a href="#" class="open-modal" data-url="/view_article/{{ row[0] }}">
                       <button class="rejected-btn">Change Requested</button></a>
                 {% else %}
