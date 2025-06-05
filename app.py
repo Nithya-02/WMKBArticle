@@ -1,10 +1,13 @@
+# Import necessary libraries
 from flask import *
 from ldap3 import *
 from werkzeug.utils import secure_filename
 import mysql.connector, os, secrets
 from flask_auditor import FlaskAuditor
 from fuzzywuzzy import fuzz
+import re
 
+# Initialize Flask application
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(8)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -12,6 +15,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 auditor = FlaskAuditor(app)
 
+# Configure Flask Auditor
 @app.before_request
 def log_login_attempt():
     if request.endpoint == 'login' and request.method == 'POST':
@@ -20,7 +24,7 @@ def log_login_attempt():
         auditor.log(action_id=action, description=description)
 
 #AD Configuration
-AD_SERVER = 'ldap://192.168.86.247'   
+AD_SERVER = 'ldap://192.168.86.26'   
 AD_DOMAIN = 'ML.com' 
 ADMIN_GROUP = 'Enterprise Admins'
 
@@ -33,7 +37,7 @@ db = mysql.connector.connect(
 )
 cursor = db.cursor()
 
-# Create table if not exists
+# Create ApproveKBArticle table if not exists
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS ApproveKBArticle (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -43,10 +47,13 @@ CREATE TABLE IF NOT EXISTS ApproveKBArticle (
     url VARCHAR(255),
     filename VARCHAR(255),
     status VARCHAR(20) DEFAULT 'Pending',
-    rejection_comment TEXT
+    rejection_comment TEXT,
+    ADGroups TEXT
 )
 """)
 db.commit()
+
+########################################### CONNECTION ROUTES(Login, Admin, Super Admin) ##############################################
 
 #Login - Connection
 @app.route('/', methods=['GET', 'POST'])
@@ -67,9 +74,16 @@ def login():
             groups = entry.memberOf
             is_admin = any(ADMIN_GROUP in group for group in groups)
 
+            group_names = []
+            for dn in groups:
+                match = re.search(r'CN=([^,]+)', dn)
+                if match:
+                    group_names.append(match.group(1))
+
             session['username'] = username
             session['cn'] = cn  
             session['is_admin'] = is_admin
+            session['groups'] = group_names
 
             return redirect(url_for('homepage'))
         
@@ -78,6 +92,7 @@ def login():
 
     return render_template('login.html', message = message)
 
+# Configure Admin route
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     if 'cn' not in session or not session.get('is_admin'):
@@ -98,8 +113,73 @@ def admin():
     records = cursor.fetchall()
 
     return render_template('admin.html', records=records)
+# Configure super admin route
 
-# Edit rejected article
+
+########################################### ROUTES FOR HOMEPAGE AND ARTICLE MANAGEMENT ##############################################
+
+# Homepage
+@app.route('/home')
+def homepage():
+    if 'cn' not in session:
+        return redirect(url_for('login'))
+
+    name = session['cn']
+    is_admin = session.get('is_admin', False)
+
+    if is_admin:
+        cursor.execute("SELECT * FROM ApproveKBArticle")
+        all_articles = cursor.fetchall()
+    else:
+        all_articles = []
+
+    return render_template('HomePage.html', name=name, is_admin=is_admin, records=all_articles)
+
+################################### ARTICLE MANAGEMENT ROUTES ###################################
+
+# SUBMIT ARTICLE
+@app.route('/submit', methods=['GET', 'POST'])
+def submit():
+    if 'cn' not in session:
+        return redirect(url_for('login'))
+    
+    cn_name = session['cn']
+    groups = session.get('groups', [])
+    if request.method == 'POST':
+        name = cn_name
+        title = request.form['title']
+        description = request.form['description']
+        url = request.form['url']
+        file = request.files['file']
+        
+        filename = None
+        if file and file.filename != '':
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+        sql = "INSERT INTO ApproveKBArticle (name, title, description, url, filename, ADGroups) VALUES (%s, %s, %s, %s, %s, %s)"
+        val = (name, title, description, url, filename, ','.join(groups))
+        cursor.execute(sql, val)
+        db.commit()
+        
+        return redirect(url_for('my_articles'))
+
+    return render_template('form.html', name=cn_name, groups=groups)
+
+# MY ARTICLES
+@app.route('/my_articles')
+def my_articles():
+    if 'cn' not in session:
+        return redirect(url_for('login'))
+
+    cn_name = session['cn']
+    cursor.execute("SELECT * FROM ApproveKBArticle WHERE name = %s", (cn_name,))
+    records = cursor.fetchall()
+
+    return render_template('myarticles.html', records=records, name=cn_name)
+
+# EDIT REJECTED ARTICLE
 @app.route('/edit/<int:article_id>', methods=['GET', 'POST'])
 def edit_article(article_id):
     if 'cn' not in session:
@@ -132,87 +212,10 @@ def edit_article(article_id):
         db.commit()
         # Redirect to the user's articles page
         return redirect(url_for('my_articles'))
-
     # Render the edit form with the article data
     return render_template('edit.html', article=article)
 
-#Submit Article
-@app.route('/submit', methods=['GET', 'POST'])
-def submit():
-    if 'cn' not in session:
-        return redirect(url_for('login'))
-    
-    cn_name = session['cn']
-    if request.method == 'POST':
-        name = cn_name
-        title = request.form['title']
-        description = request.form['description']
-        url = request.form['url']
-        file = request.files['file']
-        
-        filename = None
-        if file and file.filename != '':
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-
-        sql = "INSERT INTO ApproveKBArticle (name, title, description, url, filename) VALUES (%s, %s, %s, %s, %s)"
-        val = (name, title, description, url, filename)
-        cursor.execute(sql, val)
-        db.commit()
-        
-        return redirect(url_for('my_articles'))
-
-    return render_template('form.html', name=cn_name)
-
-#My Articles
-@app.route('/my_articles')
-def my_articles():
-    if 'cn' not in session:
-        return redirect(url_for('login'))
-
-    cn_name = session['cn']
-    cursor.execute("SELECT * FROM ApproveKBArticle WHERE name = %s", (cn_name,))
-    records = cursor.fetchall()
-
-    return render_template('myarticles.html', records=records, name=cn_name)
- 
-# View Article
-@app.route('/view_article/<int:article_id>')
-def view_article(article_id):
-    if 'cn' not in session:
-        return redirect(url_for('login'))
-
-    cursor.execute("SELECT * FROM ApproveKBArticle WHERE id = %s", (article_id,))
-    article = cursor.fetchone()
-
-    if not article:
-        return redirect(url_for('my_articles')) 
-
-    # Render the edit form with the article data
-    return render_template('view_article.html', article=article)
-
-# View Article
-@app.route('/view_myarticle/<int:article_id>')
-def view_myarticle(article_id):
-    if 'cn' not in session:
-        return redirect(url_for('login'))
-
-    cursor.execute("SELECT * FROM ApproveKBArticle WHERE id = %s", (article_id,))
-    article = cursor.fetchone()
-
-    if not article:
-        return redirect(url_for('my_articles')) 
-
-    # Render the edit form with the article data
-    return render_template('view_myarticle.html', article=article)
-
-#  View PDF
-@app.route('/view_pdf/<filename>')
-def view_pdf(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-# search Article
+# SEARCH ARTICLES
 def search_articles(query):
     cursor.execute("""
         SELECT id, title, description
@@ -233,22 +236,40 @@ def search():
     results = search_articles(query)
     return jsonify(results)
 
-@app.route('/home')
-def homepage():
+# VIEW MY ARTICLE(FROM MY ARTICLES PAGE)
+@app.route('/view_article/<int:article_id>')
+def view_article(article_id):
     if 'cn' not in session:
         return redirect(url_for('login'))
 
-    name = session['cn']
-    is_admin = session.get('is_admin', False)
+    cursor.execute("SELECT * FROM ApproveKBArticle WHERE id = %s", (article_id,))
+    article = cursor.fetchone()
 
-    if is_admin:
-        cursor.execute("SELECT * FROM ApproveKBArticle")
-        all_articles = cursor.fetchall()
-    else:
-        all_articles = []
+    if not article:
+        return redirect(url_for('my_articles')) 
+    # Render the edit form with the article data
+    return render_template('view_article.html', article=article)
 
-    return render_template('HomePage.html', name=name, is_admin=is_admin, records=all_articles)
+# VIEW MY ARTICLE(FROM SEARCH)
+@app.route('/view_myarticle/<int:article_id>')
+def view_myarticle(article_id):
+    if 'cn' not in session:
+        return redirect(url_for('login'))
 
+    cursor.execute("SELECT * FROM ApproveKBArticle WHERE id = %s", (article_id,))
+    article = cursor.fetchone()
+
+    if not article:
+        return redirect(url_for('my_articles')) 
+    # Render the edit form with the article data
+    return render_template('view_myarticle.html', article=article)
+
+#  VIEW PDF
+@app.route('/view_pdf/<filename>')
+def view_pdf(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# Logout - Connection
 @app.route('/logout', methods=['POST'])
 def logout():
     session.clear()

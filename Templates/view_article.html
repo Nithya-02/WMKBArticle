@@ -8,7 +8,9 @@
 
             <div class="mb-3">
                 <label for="description" class="form-label fw-bold">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="3" readonly>{{ article[3] }}</textarea>
+                <div class="form-control" style="min-height:150px; overflow:auto;" readonly>
+                    {{ article[3] | safe }}
+                </div>
             </div>
 
             <div class="mb-3">
