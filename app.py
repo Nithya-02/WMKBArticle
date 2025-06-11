@@ -24,7 +24,7 @@ def log_login_attempt():
         auditor.log(action_id=action, description=description)
 
 #AD Configuration
-AD_SERVER = 'ldap://192.168.86.26'   
+AD_SERVER = 'ldap://192.168.86.188'   
 AD_DOMAIN = 'ML.com' 
 ADMIN_GROUP = 'Enterprise Admins'
 
@@ -113,8 +113,68 @@ def admin():
     records = cursor.fetchall()
 
     return render_template('admin.html', records=records)
-# Configure super admin route
 
+# Configure super admin route
+@app.route('/grant_permissions', methods=['GET', 'POST'])
+def grant_permissions():
+    if 'cn' not in session or not session.get('is_admin'):
+        return redirect(url_for('login'))
+
+    message = None
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        action = request.form.get('action')
+
+        if action == 'add':
+            try:
+                # Setup LDAP connection
+                server = Server('ldap://192.168.86.188', get_info=ALL)
+                conn = Connection(
+                    server,
+                    user='ML.com\\Administrator',
+                    password='Shannu@2007',
+                    authentication=NTLM,
+                    auto_bind=True
+                )
+
+                user_id = user_id.strip()
+                if not user_id:
+                    message = "User ID cannot be empty."
+                    return render_template('grant_permissions.html', message=message)
+
+                # Step 1: Search for user's DN using sAMAccountName
+                search_base = 'DC=ML,DC=com'
+                search_filter = f'(sAMAccountName={user_id})'
+                conn.search(search_base, search_filter, attributes=['distinguishedName'])
+
+                if not conn.entries:
+                    message = f"User with ID '{user_id}' not found in Active Directory."
+                else:
+                    user_dn = conn.entries[0].distinguishedName.value
+                    group_dn = f'CN=Enterprise Admins,CN=Users,DC=ML,DC=com'
+
+                    # Step 2: Add user to the group
+                    conn.modify(group_dn, {'member': [(MODIFY_ADD, [user_dn])]})
+
+                    if conn.result['result'] == 0:
+                        message = f"✅ User {user_id} has been added to the Enterprise Admins group."
+                    else:
+                        message = f"❌ Failed to add user {user_id} to the group. Error: {conn.result['description']}"
+
+                conn.unbind()
+
+            except Exception as e:
+                message = f"An error occurred: {str(e)}"
+
+        elif action == 'remove':
+            # Implement removal logic here
+            pass
+
+        elif action == 'view':
+            # Implement view members logic here
+            pass
+
+    return render_template('grant_permissions.html',message=message)
 
 ########################################### ROUTES FOR HOMEPAGE AND ARTICLE MANAGEMENT ##############################################
 
@@ -132,8 +192,29 @@ def homepage():
         all_articles = cursor.fetchall()
     else:
         all_articles = []
-
+    
     return render_template('HomePage.html', name=name, is_admin=is_admin, records=all_articles)
+
+@app.route('/profile')
+def profile():  
+    if 'cn' not in session:
+        return redirect(url_for('login'))
+
+    cn_name = session['cn']
+    groups = session.get('groups', [])
+
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (cn_name,))
+    approveCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (cn_name,))
+    rejectCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s", (cn_name,))
+    totalCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (cn_name,))
+    pendingCount = cursor.fetchone()[0]
+
+    return render_template('profile.html', name=cn_name, groups=groups, 
+                           approveCount=approveCount, rejectCount=rejectCount, 
+                           totalCount=totalCount, pendingCount=pendingCount)
 
 ################################### ARTICLE MANAGEMENT ROUTES ###################################
 
@@ -268,6 +349,8 @@ def view_myarticle(article_id):
 @app.route('/view_pdf/<filename>')
 def view_pdf(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+################################### ARTICLE MANAGEMENT ROUTES ###################################
 
 # Logout - Connection
 @app.route('/logout', methods=['POST'])
