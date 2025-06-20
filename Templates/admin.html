@@ -200,15 +200,24 @@
           <input type="hidden" name="record_id" value="{{ row[0] }}">
           {% if row[6] == 'Pending' %}
           <td>
-            <button type="button" class="approved-btn" data-bs-toggle="modal" data-bs-target="#approvalModal" data-id="{{ row[0] }}">
+            <button type="button" class="approved-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#approvalModal"
+                    data-id="{{ row[0] }}"
+                    data-title="{{ row[2] }}"
+                    data-apname="{{ row[1] }}">
               <i class="bi bi-check"></i> APPROVE
             </button>
           </td>
           <td>
-            <button type="button" class="rejected-btn" data-bs-toggle="modal" data-bs-target="#rejectionModal" data-id="{{ row[0] }}">
+            <button type="button" class="rejected-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#rejectionModal"
+                    data-id="{{ row[0] }}"
+                    data-title="{{ row[2] }}"
+                    data-apname="{{ row[1] }}">
               <i class="bi bi-x"></i> REJECT
             </button>
-          </td>
           {% elif row[6] == 'rejected' %}
           <td colspan="2">
             <button type="submit" name="action" class="pending-btn" disabled>CHANGE NEEDED</button>
@@ -252,6 +261,8 @@
         <div class="modal-body">
           <input type="hidden" name="record_id" id="rejectRecordId">
           <input type="hidden" name="action" value="reject">
+          <input type="hidden" name="title" id="rejectTitle">
+          <input type="hidden" name="apname" id="rejectApname">
           <div class="mb-3">
             <label for="rejectionComment" class="form-label">Rejection Comment</label>
             <textarea class="form-control" id="rejectionComment" name="rejection_comment" rows="3" required></textarea>
@@ -277,6 +288,8 @@
         <div class="modal-body">
           <input type="hidden" name="record_id" id="acceptRecordId">
           <input type="hidden" name="action" value="approve">
+          <input type="hidden" name="title" id="acceptTitle">
+          <input type="hidden" name="apname" id="acceptApname">
             <p class="font-bold">Are you sure you want to approve this article?</p>
         </div>
         <div class="modal-footer">
@@ -291,15 +304,23 @@
   document.getElementById('rejectionModal').addEventListener('show.bs.modal', function (event) {
     var button = event.relatedTarget;
     var recordId = button.getAttribute('data-id');
+    var title = button.getAttribute('data-title');
+    var apname = button.getAttribute('data-apname');
     var modal = this;
     modal.querySelector('#rejectRecordId').value = recordId;
+    modal.querySelector('#rejectTitle').value = title;
+    modal.querySelector('#rejectApname').value = apname;
   });
 
   document.getElementById('approvalModal').addEventListener('show.bs.modal', function (event) {
     var button = event.relatedTarget;
     var recordId = button.getAttribute('data-id');
+    var title = button.getAttribute('data-title');
+    var apname = button.getAttribute('data-apname');
     var modal = this;
     modal.querySelector('#acceptRecordId').value = recordId;
+    modal.querySelector('#acceptTitle').value = title;
+    modal.querySelector('#acceptApname').value = apname;
   });
 
   document.querySelectorAll('.open-modal').forEach(link => {

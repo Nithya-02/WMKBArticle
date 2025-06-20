@@ -127,18 +127,11 @@
                 <a href="#" class="nav-link d-flex align-items-center" id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
                     <img src="static/images/userprofile.jpg" alt="" width="36" height="32" class="rounded-circle">
                 </a>
-                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownUser2">
-                <li>
-                    <div class="dropdown-item disabled text-dark">
-                        <i class="bi bi-person fs-5 text-warning"></i>
-                        <span class="text-success"> {{ name }}</span>
-                    </div>
-                </li>
-                <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" style="color:rgb(7, 14, 86);" href="{{ url_for('my_articles') }}"><i class="bi bi-journals me-1"></i>All Articles - <b>{{ totalCount }}</b></a></li>
-                <li><a class="dropdown-item" style="color:rgb(8, 82, 8);" href="{{ url_for('approved_articles') }}"><i class="bi bi-journal-check me-1"></i>Approved - <b>{{ approveCount }}</b></a></li>
-                <li><a class="dropdown-item" style="color:purple;" href="{{ url_for('pending_articles') }}"><i class="bi bi-journal-minus me-1"></i>Pending - <b>{{ pendingCount }}</b></a></li>
-                <li><a class="dropdown-item" style="color:rgb(162, 17, 17);" href="{{ url_for('rejected_articles') }}"><i class="bi bi-journal-x me-1"></i>Rejected - <b>{{ rejectCount }}</b></a></li>
+                <ul class="dropdown-menu dropdown-menu-end text-small shadow" aria-labelledby="dropdownUser2">
+                <li><div class="dropdown-item" style="color:rgb(7, 14, 86);"><i class="bi bi-journals me-1"></i>All Articles - <b>{{ totalCount }}</b></div></li>
+                <li><div class="dropdown-item" style="color:rgb(8, 82, 8);"><i class="bi bi-journal-check me-1"></i>Approved - <b>{{ approveCount }}</b></div></li>
+                <li><div class="dropdown-item" style="color:purple;"><i class="bi bi-journal-minus me-1"></i>Pending - <b>{{ pendingCount }}</b></div></li>
+                <li><div class="dropdown-item" style="color:rgb(162, 17, 17);"><i class="bi bi-journal-x me-1"></i>Rejected - <b>{{ rejectCount }}</b></div></li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
                     <form action="{{ url_for('logout') }}" method="post" class="d-inline">

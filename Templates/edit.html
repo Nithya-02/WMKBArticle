@@ -64,7 +64,7 @@
                 <input type="file" class="form-control" id="file" name="file">
                 {% if article[5] %}
                     <div class="form-text mt-2">
-                        <a href="{{ url_for('view_pdf', filename=article[5]) }}" class="btn btn-outline-secondary" target="_blank">
+                        <a href="{{ url_for('view_pdf', filename=article[5]) }}" style="color:black" class="btn btn-link" target="_blank">
                             {{ article[5] }}
                         </a>
                     </div>
