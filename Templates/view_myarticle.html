@@ -8,15 +8,14 @@
             margin: 0;
             min-height: 100vh;
             background-image: url("{{ url_for('static', filename='images/WM_Background.png') }}");
-            background-size: cover;           /* Ensures full coverage */
-            background-position: center;      /* Keeps it centered */
-            background-repeat: no-repeat;     /* Prevents tiling */
-            background-attachment: fixed;     /* Optional: keeps it fixed during scroll */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             color: white;
             position: relative;
         }
 
-        /* Dark transparent overlay to improve text readability */
         body::before {
             content: "";
             position: fixed;
@@ -24,7 +23,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.799);  /* Dark overlay */
+            background-color: rgba(0, 0, 0, 0.799);
             z-index: -1;
         }
 
@@ -33,19 +32,40 @@
             padding: 20px;
             border-radius: 10px;
         }
+
         h2 {
             color: #000000;
         }
+
         .form-label {
             color: #000000;
         }
-        p{
-            color: #000000; /* Ensures text is readable against the background */
-            margin-bottom: 0.5rem; /* Adds a bit of spacing between paragraphs */
-        }
-        .form-control {
-            background-color: #f0f4fa; /* Softer, light bluish-grey background */
+
+        p {
             color: #000000;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            background-color: #f0f4fa;
+            color: #000000;
+        }
+
+        /* ✅ Table styling for CKEditor-generated tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
         }
     </style>
 </head>
@@ -69,7 +89,8 @@
 
             <div class="mb-3">
                 <label for="description" class="form-label fw-bold">Description</label>
-                <p>{{ article[3] }}</p>
+                <!-- ✅ Render HTML description safely -->
+                <div>{{ article[3] | safe }}</div>
             </div>
 
             <div class="mb-3">

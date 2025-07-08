@@ -1,42 +1,203 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <title>Grant Permissions</title>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-  <div class="container mt-5">
-    <h2 class="mb-4">Grant Permissions</h2>
-
-    <form method="POST" action="{{ url_for('grant_permissions') }}">
-      <div class="mb-3">
-        <label for="user_id" class="form-label">User ID:</label>
-        <input type="text" class="form-control" id="user_id" name="user_id" placeholder="Enter AD User ID">
-      </div>
-
-      <div class="mb-3">
-        <label class="form-label">Action:</label><br>
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="radio" name="action" value="add" checked>
-          <label class="form-check-label">Add</label>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>KB Article Portal - Grant Permissions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendors/simple-line-icons/css/simple-line-icons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendors/flag-icon-css/css/flag-icon.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendors/css/vendor.bundle.base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.png') }}" />
+    <style>
+      .quick-action-item {
+        border-right: 1px solid #ddd;
+      }
+      .quick-action-toolbar .card .d-flex > div:last-child {
+        border-right: none !important;
+      }
+    </style>
+    <script>
+      let timeout = null;
+      function handleSearch() {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          const query = document.getElementById('searchBox').value.trim();
+          const suggestionBox = document.getElementById('searchSuggestions');
+          if (query.length < 2) {
+            suggestionBox.innerHTML = '';
+            return;
+          }
+          fetch(`/search?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+              suggestionBox.innerHTML = '';
+              if (data.length === 0) {
+                suggestionBox.innerHTML = '<div class="suggestion-item">No results found</div>';
+              } else {
+                data.forEach(item => {
+                  const link = document.createElement('a');
+                  link.href = `/view_myarticle/${item.id}`;
+                  link.className = 'suggestion-item d-block text-decoration-none text-dark';
+                  link.textContent = item.title;
+                  suggestionBox.appendChild(link);
+                });
+              }
+            })
+            .catch(error => {
+              console.error('Search error:', error);
+              suggestionBox.innerHTML = '';
+            });
+        }, 300);
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container-scroller">
+      <!-- Navbar -->
+      <nav class="navbar default-layout-navbar col-lg-12 col-12 p-0 fixed-top d-flex flex-row">
+        <div class="navbar-brand-wrapper d-flex align-items-center justify-content-center">
+          <a class="navbar-brand brand-logo" href="{{ url_for('homepage') }}">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo" class="logo-dark" />
+          </a>
+          <a class="navbar-brand brand-logo-mini" href="{{ url_for('homepage') }}">
+            <img src="{{ url_for('static', filename='images/logo-mini.svg') }}" alt="logo-mini" />
+          </a>
         </div>
-        <div class="form-check form-check-inline">
-          <input class="form-check-input" type="radio" name="action" value="remove">
-          <label class="form-check-label">Remove</label>
+        <div class="navbar-menu-wrapper d-flex align-items-center flex-grow-1">
+          <ul class="navbar-nav navbar-nav-right ml-auto">
+            <form class="search-form search-open" action="#">
+              <i class="icon-magnifier"></i>
+              <input type="search" class="form-control" id="searchBox" placeholder="Search KB Articles" onkeyup="handleSearch()">
+              <div id="searchSuggestions" class="suggestion-box"></div>
+            </form>
+            <li class="nav-item dropdown d-none d-xl-inline-flex user-dropdown">
+              <a class="nav-link dropdown-toggle" id="UserDropdown" href="#" data-toggle="dropdown" aria-expanded="false">
+                <img class="img-xs rounded-circle ml-2" src="{{ url_for('static', filename='images/faces/face8.jpg') }}" alt="Profile image">
+                <span class="font-weight-normal"> {{name}} </span>
+              </a>
+              <div class="dropdown-menu dropdown-menu-right navbar-dropdown" aria-labelledby="UserDropdown">
+                <div class="dropdown-header text-center">
+                  <img class="img-md rounded-circle" src="{{ url_for('static', filename='images/faces/face8.jpg') }}" alt="Profile image">
+                  <p class="mb-1 mt-3">{{name}}</p>
+                </div>
+                <a class="dropdown-item" href="{{ url_for('my_articles') }}"><i class="dropdown-item-icon icon-user text-primary"></i> My Total Articles <span class="badge badge-pill badge-danger">{{totalCount}}</span></a>
+                <a class="dropdown-item" href="{{ url_for('approved_articles') }}"><i class="dropdown-item-icon icon-speech text-primary"></i> Approved <span class="badge badge-pill badge-danger">{{approveCount}}</span></a>
+                <a class="dropdown-item" href="{{ url_for('rejected_articles') }}"><i class="dropdown-item-icon icon-energy text-primary"></i> Rejected <span class="badge badge-pill badge-danger">{{rejectCount}}</span></a>
+                <a class="dropdown-item" href="{{ url_for('pending_articles') }}"><i class="dropdown-item-icon icon-question text-primary"></i> Pending <span class="badge badge-pill badge-danger">{{pendingCount}}</span></a>
+                <form action="{{ url_for('logout') }}" method="post">
+                  <button class="dropdown-item"><i class="dropdown-item-icon icon-power text-primary"></i>Sign Out</button>
+                </form>
+              </div>
+            </li>
+          </ul>
+          <button class="navbar-toggler navbar-toggler-right d-lg-none align-self-center" type="button" data-toggle="offcanvas">
+            <span class="icon-menu"></span>
+          </button>
         </div>
-      </div>
+      </nav>
 
-      <button type="submit" class="btn btn-primary">Submit</button>
-      <a href="{{ url_for('homepage') }}" class="btn btn-secondary ms-2">Back to Home</a>
-    </form>
+      <!-- Body Wrapper -->
+      <div class="container-fluid page-body-wrapper">
+        <div class="main-panel">
+          <div class="content-wrapper">
 
-    {% if message %}
-      <div class="alert alert-info mt-4">{{ message|safe }}</div>
-    {% endif %}
-  </div>
+            <!-- Quick Action Toolbar -->
+            <div class="row quick-action-toolbar">
+              <div class="col-md-12 grid-margin">
+                <div class="card">
+                  <div class="card-header d-block d-md-flex">
+                    <h5 class="mb-0">Quick Actions</h5>
+                    <p class="ml-auto mb-0"><i class="icon-bulb"></i></p>
+                  </div>
+                  <div class="d-flex flex-row justify-content-between flex-wrap w-100 px-3 py-2" role="group">
+                    <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
+                      <a class="btn px-0" href="{{ url_for('submit') }}"><i class="icon-book-open mr-2"></i>Create KB Article</a>
+                    </div>
+                    {% if is_admin or is_kb_approver %}
+                    <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
+                      <a class="btn px-0" href="{{ url_for('admin') }}"><i class="icon-user mr-2"></i> Approve Articles</a>
+                    </div>
+                    {% endif %}
+                    {% if is_admin %}
+                    <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
+                      <a class="btn px-0" href="{{ url_for('grant_permissions') }}"><i class="icon-user mr-2"></i> Grant Access</a>
+                    </div>
+                    {% endif %}
+                    <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
+                      <a class="btn px-0" href="{{ url_for('rejected_articles') }}"><i class="icon-docs mr-2"></i> My Rejected Articles</a>
+                    </div>
+                    <div class="p-2 flex-fill text-center btn-wrapper">
+                      <a class="btn px-0" href="{{ url_for('pending_articles') }}"><i class="icon-folder mr-2"></i> My Pending Articles</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
+            <!-- Grant Permissions Form -->
+            <div class="row justify-content-center">
+                <div class="col-12">
+                    <div class="card p-5" style="width: 100%;">
+                    <div class="card-body">
+                        <h3 class="mb-4"><i class="icon-key"></i> Grant Permissions</h3>
+                        {% if message %}
+                        <div class="alert alert-info alert-dismissible fade show mt-4" role="alert">
+                            {{ message|safe }}
+                        </div>
+                        {% endif %}
+                        <form method="POST" action="{{ url_for('grant_permissions') }}" id="grantForm">
+                        <div class="form-group mb-4">
+                            <label for="user_id" class="form-label">Enter AD User ID</label>
+                            <input type="text" class="form-control form-control-lg" id="user_id" name="user_id" placeholder="Enter AD User ID" required>
+                        </div>
+
+                        <div class="form-group mb-4">
+                            <div class="form-check">
+                            <input class="form-check-input" type="radio" name="action" id="addAction" value="add">
+                            <label class="form-check-label" for="addAction">Grant KBApprover Access</label>
+                            </div>
+                            <div class="form-check">
+                            <input class="form-check-input" type="radio" name="action" id="removeAction" value="remove">
+                            <label class="form-check-label" for="removeAction">Revoke KBApprover Access</label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-dark" onclick="confirmGrant()">Submit</button>
+                        </form>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
+                </div>
+
+    <!-- Scripts -->
+     <script>
+        function confirmGrant() {
+            const form = document.getElementById('grantForm');
+            const userId = document.getElementById('user_id').value.trim();
+            const grantChecked = document.getElementById('addAction').checked;
+            const revokeChecked = document.getElementById('removeAction').checked;
+
+            if (!userId) {
+            alert("Please enter the AD User ID.");
+            return;
+            }
+
+            let actionText = grantChecked
+            ? "Are you sure you want to GRANT KBApprover access to " + userId + "?"
+            : "Are you sure you want to REVOKE KBApprover access for " + userId + "?";
+
+            if (confirm(actionText)) {
+            form.submit();
+            }
+        }
+        </script>
+
+    <script src="{{ url_for('static', filename='vendors/js/vendor.bundle.base.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/off-canvas.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/misc.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  </body>
 </html>

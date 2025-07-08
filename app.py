@@ -11,7 +11,7 @@ from email.message import EmailMessage
 import re
 
 # Initialize Flask application
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 app.secret_key = secrets.token_hex(8)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -22,7 +22,6 @@ PORT = 25
 SMTP_Name = "smtp.freesmtpservers.com"
 CONTEXT = ssl.create_default_context()
 FROM = 'nhari@freesmtpservers.com'
-msg = EmailMessage()
 
 # Configure Flask Auditor
 @app.before_request
@@ -33,7 +32,7 @@ def log_login_attempt():
         auditor.log(action_id=action, description=description)
 
 #AD Configuration
-AD_SERVER = 'ldap://172.20.10.6'   
+AD_SERVER = 'ldap://192.168.86.209'   
 AD_DOMAIN = 'ML.com' 
 ADMIN_GROUP = 'Enterprise Admins'
 
@@ -125,8 +124,9 @@ def admin():
         if action == 'approve':
             cursor.execute("UPDATE ApproveKBArticle SET status = 'approved', rejection_comment = NULL WHERE id = %s", (record_id,))
             try:
+                msg = EmailMessage()
                 TO = ["nhari@freesmtpservers.com"]
-                SUBJECT = f"{title} - Approved!"
+                SUBJECT = f"Article Approved : {title}"
                 TEXT = f"""
                 <html>  
                 <body>
@@ -150,8 +150,9 @@ def admin():
         elif action == 'reject':
             cursor.execute("UPDATE ApproveKBArticle SET status = 'rejected', rejection_comment = %s WHERE id = %s", (rejection_comment, record_id))
             try:
+                msg = EmailMessage()
                 TO = ["nhari@freesmtpservers.com"]
-                SUBJECT = "Your KB Article has been Rejected!"
+                SUBJECT = f"Article Rejected : {title}"
                 TEXT = f"""
                 <html>  
                 <body>
@@ -187,6 +188,7 @@ def grant_permissions():
     if 'cn' not in session or not session.get('is_admin'):
         return redirect(url_for('login'))
     message = None
+    name = session['cn']
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         action = request.form.get('action')
@@ -223,7 +225,7 @@ def grant_permissions():
                     conn.modify(group_dn, {'member': [(MODIFY_ADD, [user_dn])]})
 
                     if conn.result['result'] == 0:
-                        message = f"✅ User {user_id} has been added to the KBApprove group."
+                        message = f"✅ User {user_id} has been granted the KBApprover role."
                     else:
                         message = f"❌ Failed to add user {user_id} to the group. Error: {conn.result['description']}"
 
@@ -264,7 +266,7 @@ def grant_permissions():
                     conn.modify(group_dn, {'member': [(MODIFY_DELETE, [user_dn])]})
 
                     if conn.result['result'] == 0:
-                        message = f"✅ User {user_id} has been removed from the KBApprove group."
+                        message = f"✅ User {user_id}'s KBApprover role has been revoked."
                     else:
                         message = f"❌ Failed to remove user {user_id} from the group. Error: {conn.result['description']}"
 
@@ -273,8 +275,23 @@ def grant_permissions():
             except Exception as e:
                 message = f"An error occurred: {str(e)}"
             pass
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (name,))
+    approveCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (name,))
+    rejectCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s", (name,))
+    totalCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (name,))
+    pendingCount = cursor.fetchone()[0]
 
-    return render_template('grant_permissions.html',message=message)
+    return render_template('grant_permissions.html', name=name, is_admin=session.get('is_admin', False), is_kb_approver=session.get('is_kb_approver', False),
+    approveCount=approveCount,
+    rejectCount=rejectCount,
+    totalCount=totalCount,
+    pendingCount=pendingCount,
+    message=message
+)
+
 
 
 ########################################### ROUTES FOR HOMEPAGE AND ARTICLE MANAGEMENT ##############################################
@@ -322,6 +339,7 @@ def submit():
         title = request.form['title']
         description = request.form['description']
         url = request.form['url']
+        group = request.form['groups']
         file = request.files['file']
         
         filename = None
@@ -330,14 +348,24 @@ def submit():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
 
-        sql = "INSERT INTO ApproveKBArticle (name, title, description, url, filename, ADGroups) VALUES (%s, %s, %s, %s, %s, %s)"
-        val = (name, title, description, url, filename, ','.join(groups))
+        # Generate custom article ID like HR-001
+        prefix = group[:3].upper()
+        cursor.execute("""
+            SELECT COUNT(*) FROM ApproveKBArticle WHERE ADGroups LIKE %s
+        """, (f'%{group}%',))
+        count = cursor.fetchone()[0] + 1
+        article_id = f"{prefix}-{count:03d}"
+
+
+        sql = "INSERT INTO ApproveKBArticle (name, title, description, url, filename, ADGroups, article_id_custom) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        val = (name, title, description, url, filename, group, article_id)
         cursor.execute(sql, val)
         db.commit()
 
         try:
+            msg = EmailMessage()
             TO = ["nhari@freesmtpservers.com"]
-            SUBJECT = "New KB Article Submitted"
+            SUBJECT = "New KB Article Submitted by " + cn_name
             TEXT = f"""
             <html>  
             <body>
@@ -363,7 +391,8 @@ def submit():
         except Exception as e:
             print("❌ Error sending email:", str(e))
         
-        return redirect(url_for('my_articles'))
+        flash(f"✅ Article submitted successfully! Article ID: {article_id}", "success")
+        return redirect(url_for('submit'))
 
     return render_template('form.html', name=cn_name, groups=groups)
 
@@ -539,6 +568,27 @@ def view_myarticle(article_id):
         return redirect(url_for('my_articles')) 
     # Render the edit form with the article data
     return render_template('view_myarticle.html', article=article)
+
+@app.route('/get_next_article_id', methods=['POST'])
+def get_next_article_id():
+    data = request.get_json()
+    group = data.get('group')
+
+    if not group:
+        return jsonify({'error': 'Group not provided'}), 400
+
+    # Extract numeric suffixes from title for that group (if any used previously)
+    cursor.execute("""
+        SELECT MAX(id)
+        FROM ApproveKBArticle
+        WHERE ADGroups LIKE %s
+    """, (f"%{group}%",))
+
+    result = cursor.fetchone()
+    max_id = result[0] if result and result[0] else 0
+    next_id = max_id + 1
+
+    return jsonify({'next_article_id': next_id})
 
 #  VIEW PDF
 @app.route('/view_pdf/<filename>')

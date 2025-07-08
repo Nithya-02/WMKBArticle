@@ -42,16 +42,32 @@
         <h2 class="mb-0 fw-bold" style="color:#2d5418">Submit KB Article</h2>
         <a href="{{ url_for('homepage') }}" class="btn btn-dark">Home</a>
       </div>
+      
+      <!-- ✅ Flash Messages Block -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
 
       <form action="/submit" method="post" enctype="multipart/form-data">
         <div class="mb-3">
           <label for="author" class="form-label fw-bold">Author Name</label>
           <input type="text" class="form-control" id="author" name="author" value="{{ name }}" readonly>
         </div>
-
         <div class="mb-3">
-          <label class="form-label fw-bold">Group(s)</label>
-          <div class="form-control" style="height:auto;white-space:pre-line;" readonly>{{ groups | join('\n') | trim }}</div>
+          <label for="groups" class="form-label fw-bold">Group(s)</label>
+          <select class="form-control" id="groups" name="groups" required>
+            <option value="" disabled selected>Select a group</option>
+            {% for group in groups %}
+              <option value="{{ group }}">{{ group }}</option>
+            {% endfor %}
+          </select>
         </div>
 
         <div class="mb-3">
