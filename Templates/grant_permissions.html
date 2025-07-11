@@ -51,6 +51,18 @@
         }, 300);
       }
     </script>
+    <script>
+          document.addEventListener('DOMContentLoaded', function () {
+            const currentPath = window.location.pathname;
+            const quickActionLinks = document.querySelectorAll('.quick-action-item a');
+
+            quickActionLinks.forEach(link => {
+              if (link.getAttribute('href') === currentPath) {
+                link.classList.add('active');
+              }
+            });
+          });
+        </script>
   </head>
   <body>
     <div class="container-scroller">
@@ -58,7 +70,7 @@
       <nav class="navbar default-layout-navbar col-lg-12 col-12 p-0 fixed-top d-flex flex-row">
         <div class="navbar-brand-wrapper d-flex align-items-center justify-content-center">
           <a class="navbar-brand brand-logo" href="{{ url_for('homepage') }}">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo" class="logo-dark" />
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo" class="logo-dark" style="width: auto; height: auto;"/>
           </a>
           <a class="navbar-brand brand-logo-mini" href="{{ url_for('homepage') }}">
             <img src="{{ url_for('static', filename='images/logo-mini.svg') }}" alt="logo-mini" />
@@ -112,11 +124,11 @@
                   </div>
                   <div class="d-flex flex-row justify-content-between flex-wrap w-100 px-3 py-2" role="group">
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
-                      <a class="btn px-0" href="{{ url_for('submit') }}"><i class="icon-book-open mr-2"></i>Create KB Article</a>
+                      <a class="btn px-0" href="{{ url_for('submit') }}"><i class="icon-note mr-2"></i>Create KB Article</a>
                     </div>
                     {% if is_admin or is_kb_approver %}
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
-                      <a class="btn px-0" href="{{ url_for('admin') }}"><i class="icon-user mr-2"></i> Approve Articles</a>
+                      <a class="btn px-0" href="{{ url_for('admin') }}"><i class="icon-speech mr-2"></i> Approve Articles</a>
                     </div>
                     {% endif %}
                     {% if is_admin %}
@@ -127,7 +139,7 @@
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
                       <a class="btn px-0" href="{{ url_for('rejected_articles') }}"><i class="icon-docs mr-2"></i> My Rejected Articles</a>
                     </div>
-                    <div class="p-2 flex-fill text-center btn-wrapper">
+                    <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
                       <a class="btn px-0" href="{{ url_for('pending_articles') }}"><i class="icon-folder mr-2"></i> My Pending Articles</a>
                     </div>
                   </div>

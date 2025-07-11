@@ -1,66 +1,125 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
     <title>KB Article Portal</title>
+
     <!-- plugins:css -->
     <link rel="stylesheet" href="{{ url_for('static', filename='vendors/simple-line-icons/css/simple-line-icons.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendors/flag-icon-css/css/flag-icon.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendors/css/vendor.bundle.base.css') }}">
-    <!-- endinject -->
-    <!-- Plugin css for this page -->
-    <!-- End plugin css for this page -->
-    <!-- inject:css -->
-    <!-- endinject -->
-    <!-- Layout styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" > <!-- End layout styles -->
-    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.png') }}" />
-  </head>
-  <body>
-    <div class="container-scroller">
-      <div class="container-fluid page-body-wrapper full-page-wrapper">
-        <div class="content-wrapper d-flex align-items-center auth">
-          <div class="row flex-grow">
-            <div class="col-lg-4 mx-auto">
-              <div class="auth-form-light text-left p-5">
-                <div class="brand-logo">
-                  <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo">
-                </div>
 
-                <form class="pt-3" method="post">
-                      {% if message %}
-                          <p style="color: #f32110; font-weight: bold;">{{ message }}</p>
-                      {% endif %}
-                  <div class="form-group">
-                    <input type="text" class="form-control form-control-lg" name="username" placeholder="Enter your WM network ID" required>
-                  </div>
-                  <div class="form-group">
-                    <input type="password" class="form-control form-control-lg" name="password" placeholder="Password" required>
-                  </div>
-                  <div class="mt-3">
-                    <button class="btn btn-block btn-primary btn-lg font-weight-medium auth-form-btn" type="submit">SIGN IN</button>
-                    <!--<button type="submit">Login</button>-->
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- content-wrapper ends -->
+    <!-- Layout styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.png') }}" />
+
+    <style>
+      body {
+        background-color: #f5f7fa;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+      }
+
+      .login-wrapper {
+        background-color: #ffffff;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+        border-radius: 10px;
+        display: flex;
+        overflow: hidden;
+        max-width: 900px;
+        width: 100%;
+      }
+
+      .login-left {
+        background-color: #f0f3f7;
+        padding: 30px;
+        width: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .login-left img.logo {
+        max-width: 120px;
+        margin-bottom: 20px;
+        align-self: flex-start;
+      }
+
+      .login-left img.pc-image {
+        max-width: 90%;
+        height: auto;
+        object-fit: contain;
+    }
+
+      .login-right {
+        padding: 40px;
+        width: 50%;
+      }
+
+      .login-right h4 {
+        margin-bottom: 20px;
+        font-weight: 600;
+      }
+
+      .form-control {
+        border-radius: 6px;
+      }
+
+      .auth-form-btn {
+        border-radius: 6px;
+      }
+
+      @media (max-width: 768px) {
+        .login-wrapper {
+          flex-direction: column;
+        }
+
+        .login-left, .login-right {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="login-wrapper">
+
+      <!-- Left side: Logo + PC Image -->
+      <div class="login-left">
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="logo" >
+        <img src="{{ url_for('static', filename='images/loginPic.png') }}" alt="PC" class="pc-image" style="max-width: 100%; height: auto;">
       </div>
-      <!-- page-body-wrapper ends -->
+
+      <!-- Right side: Login Form -->
+      <div class="login-right">
+        {% if message %}
+          <p style="color: #f32110; font-weight: bold;">{{ message }}</p>
+        {% endif %}
+        <h3>Welcome to KB Article Portal!</h3>
+        <br>
+        <form method="post">
+          <div class="form-group">
+            <input type="text" class="form-control form-control-lg" name="username" placeholder="Enter your WM network ID" required>
+          </div>
+          <div class="form-group">
+            <input type="password" class="form-control form-control-lg" name="password" placeholder="Password" required>
+          </div>
+          <div class="mt-3">
+            <button class="btn btn-block btn-primary btn-lg font-weight-medium auth-form-btn" type="submit">SIGN IN</button>
+          </div>
+        </form>
+      </div>
+
     </div>
-    <!-- container-scroller -->
+
     <!-- plugins:js -->
     <script src="{{ url_for('static', filename='vendors/js/vendor.bundle.base.js') }}"></script>
-    <!-- endinject -->
-    <!-- Plugin js for this page -->
-    <!-- End plugin js for this page -->
-    <!-- inject:js -->
     <script src="{{ url_for('static', filename='js/off-canvas.js') }}"></script>
     <script src="{{ url_for('static', filename='js/misc.js') }}"></script>
-    <!-- endinject -->
   </body>
 </html>

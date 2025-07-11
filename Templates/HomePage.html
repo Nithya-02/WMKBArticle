@@ -56,13 +56,26 @@
             }, 300); // debounce
         }
         </script>
+        <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const currentPath = window.location.pathname;
+      const quickActionLinks = document.querySelectorAll('.quick-action-item a');
+
+      quickActionLinks.forEach(link => {
+        if (link.getAttribute('href') === currentPath) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+
   </head>
   <body>
     <div class="container-scroller">
       <!-- partial:partials/_navbar.html -->
       <nav class="navbar default-layout-navbar col-lg-12 col-12 p-0 fixed-top d-flex flex-row">
         <div class="navbar-brand-wrapper d-flex align-items-center justify-content-center">
-          <a class="navbar-brand brand-logo" href="HomePage.html">
+          <a class="navbar-brand brand-logo" href="{{ url_for('homepage') }}">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="logo" class="logo-dark" style="width: auto; height: auto;"/>
           </a>
           <a class="navbar-brand brand-logo-mini" href="HomePage.html"><img src="{{ url_for('static', filename='images/logo-mini.svg') }}" alt="logo" /></a>
@@ -117,7 +130,7 @@
                   </div>
                   <div class="d-flex flex-row justify-content-between flex-wrap w-100 px-3 py-2" role="group" aria-label="Quick action buttons">
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item border-right">
-                      <a type="button" class="btn px-0" href="{{ url_for('submit') }}"><i class="icon-book-open mr-2"></i>Create KB Article</a>
+                      <a type="button" class="btn px-0" href="{{ url_for('submit') }}"><i class="icon-note mr-2"></i>Create KB Article</a>
                     </div>
                     {% if is_admin or is_kb_approver %}
                       <div class="p-2 flex-fill text-center btn-wrapper quick-action-item border-right">

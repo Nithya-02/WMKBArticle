@@ -1,20 +1,30 @@
 <div class="container">
+        {% if article[7] %}
+            <div class="alert alert-warning" role="alert">
+                <b> Rejection Comment: </b> {{ article[7] }}
+            </div>
+        {% endif %}
         <form action="/submit" method="post" enctype="multipart/form-data">
 
             <div class="mb-3">
-                <label for="title" class="form-label fw-bold">Article Title</label>
+                <label for="title" class="form-label"><b>Article Title</b></label>
                 <input type="text" class="form-control" id="title" name="title" value="{{ article[2] }}" readonly>
             </div>
 
             <div class="mb-3">
-                <label for="description" class="form-label fw-bold">Description</label>
+                <label for="title" class="form-label fw-bold"><b>Article ID</b></label>
+                <input type="text" class="form-control" id="title" name="title" value="{{ article[9] }}" readonly>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label fw-bold"><b>Description</b></label>
                 <div class="form-control" style="min-height:150px; overflow:auto;" readonly>
                     {{ article[3] | safe }}
                 </div>
             </div>
 
             <div class="mb-3">
-                <label for="url" class="form-label fw-bold">URL (if anything related)</label>
+                <label for="url" class="form-label fw-bold"><b>URL (if anything related)</b></label>
                 {% if article[4] %}
                     <input type="url" class="form-control" id="url" name="url" value="{{ article[4] }}" readonly>
                 {% else %}
@@ -23,7 +33,7 @@
             </div>
             
             <div class="mb-3">
-                <label class="form-label fw-bold">Uploaded File</label><br>
+                <label class="form-label fw-bold"><b>Uploaded File</b></label><br>
                     {% if article[5] %}
                         <a href="{{ url_for('view_pdf', filename=article[5]) }}" class="btn btn-outline-dark" target="_blank">
                         {{ article[5] }}

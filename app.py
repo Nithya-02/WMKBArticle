@@ -21,7 +21,7 @@ auditor = FlaskAuditor(app)
 PORT = 25
 SMTP_Name = "smtp.freesmtpservers.com"
 CONTEXT = ssl.create_default_context()
-FROM = 'nhari@freesmtpservers.com'
+FROM = 'test1@freesmtpservers.com'
 
 # Configure Flask Auditor
 @app.before_request
@@ -113,6 +113,7 @@ def login():
 def admin():
     if 'cn' not in session or not (session.get('is_admin') or session.get('is_kb_approver')):
         return redirect(url_for('login'))
+    name = session['cn']
     if request.method == 'POST':
         action = request.form['action']
         cn_name = session['cn']
@@ -123,9 +124,9 @@ def admin():
 
         if action == 'approve':
             cursor.execute("UPDATE ApproveKBArticle SET status = 'approved', rejection_comment = NULL WHERE id = %s", (record_id,))
-            try:
+            '''try:
                 msg = EmailMessage()
-                TO = ["nhari@freesmtpservers.com"]
+                TO = ["test1@freesmtpservers.com"]
                 SUBJECT = f"Article Approved : {title}"
                 TEXT = f"""
                 <html>  
@@ -146,12 +147,12 @@ def admin():
                 server.quit()
                 print("✅ Article is approved and email sent to user.")
             except Exception as e:
-                print("❌ Error sending email:", str(e))
+                print("❌ Error sending email:", str(e))'''
         elif action == 'reject':
             cursor.execute("UPDATE ApproveKBArticle SET status = 'rejected', rejection_comment = %s WHERE id = %s", (rejection_comment, record_id))
-            try:
+            '''try:
                 msg = EmailMessage()
-                TO = ["nhari@freesmtpservers.com"]
+                TO = ["test1@freesmtpservers.com"]
                 SUBJECT = f"Article Rejected : {title}"
                 TEXT = f"""
                 <html>  
@@ -174,13 +175,27 @@ def admin():
                 server.quit()
                 print("✅ Article is rejected and email sent to user.")
             except Exception as e:
-                print("❌ Error sending email:", str(e))
+                print("❌ Error sending email:", str(e))'''
         db.commit()
 
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (name,))
+    approveCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (name,))
+    rejectCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s", (name,))
+    totalCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (name,))
+    pendingCount = cursor.fetchone()[0]
     cursor.execute("SELECT * FROM ApproveKBArticle")
     records = cursor.fetchall()
 
-    return render_template('admin.html', records=records)
+    return render_template('admin.html', name=name, is_admin=session.get('is_admin', False), is_kb_approver=session.get('is_kb_approver', False),
+        approveCount=approveCount,
+        rejectCount=rejectCount,
+        totalCount=totalCount,
+        pendingCount=pendingCount,
+        records=records
+    )
 
 # Configure super admin route
 @app.route('/grant_permissions', methods=['GET', 'POST'])
@@ -362,9 +377,9 @@ def submit():
         cursor.execute(sql, val)
         db.commit()
 
-        try:
+        '''try:
             msg = EmailMessage()
-            TO = ["nhari@freesmtpservers.com"]
+            TO = ["test1@freesmtpservers.com"]
             SUBJECT = "New KB Article Submitted by " + cn_name
             TEXT = f"""
             <html>  
@@ -389,12 +404,25 @@ def submit():
             server.quit()
             print("✅ Email sent to approvers.")
         except Exception as e:
-            print("❌ Error sending email:", str(e))
+            print("❌ Error sending email:", str(e))'''
         
         flash(f"✅ Article submitted successfully! Article ID: {article_id}", "success")
         return redirect(url_for('submit'))
+    
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (cn_name,))
+    approveCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (cn_name,))
+    rejectCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s", (cn_name,))
+    totalCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (cn_name,))
+    pendingCount = cursor.fetchone()[0]
 
-    return render_template('form.html', name=cn_name, groups=groups)
+    return render_template('form.html', name=cn_name, groups=groups, is_admin=session.get('is_admin', False), is_kb_approver=session.get('is_kb_approver', False),
+    approveCount=approveCount,
+    rejectCount=rejectCount,
+    totalCount=totalCount,
+    pendingCount=pendingCount)
 
 # MY ARTICLES
 @app.route('/my_articles')
@@ -415,7 +443,9 @@ def my_articles():
     cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (cn_name,))
     pendingCount = cursor.fetchone()[0]
 
-    return render_template('myarticles.html', records=records, name=cn_name, 
+    return render_template('myarticles.html', records=records, name=cn_name,
+                           is_admin=session.get('is_admin', False), 
+                           is_kb_approver=session.get('is_kb_approver', False), 
                            approveCount=approveCount, rejectCount=rejectCount, 
                            totalCount=totalCount, pendingCount=pendingCount)
 
@@ -437,7 +467,9 @@ def approved_articles():
     cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (cn_name,))
     pendingCount = cursor.fetchone()[0]
 
-    return render_template('approve.html', records=records, name=cn_name, 
+    return render_template('approve.html', records=records, name=cn_name,
+                           is_admin=session.get('is_admin', False), 
+                           is_kb_approver=session.get('is_kb_approver', False), 
                            approveCount=approveCount, rejectCount=rejectCount, 
                            totalCount=totalCount, pendingCount=pendingCount)
 
@@ -459,7 +491,9 @@ def rejected_articles():
     cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (cn_name,))
     pendingCount = cursor.fetchone()[0]
 
-    return render_template('reject.html', records=records, name=cn_name, 
+    return render_template('reject.html', records=records, name=cn_name,
+                           is_admin=session.get('is_admin', False), 
+                           is_kb_approver=session.get('is_kb_approver', False), 
                            approveCount=approveCount, rejectCount=rejectCount, 
                            totalCount=totalCount, pendingCount=pendingCount)
 
@@ -481,20 +515,21 @@ def pending_articles():
     cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (cn_name,))
     pendingCount = cursor.fetchone()[0]
 
-    return render_template('pending.html', records=records, name=cn_name, approveCount=approveCount, 
-                           rejectCount=rejectCount, totalCount=totalCount, pendingCount=pendingCount)
+    return render_template('pending.html', records=records, name=cn_name, 
+                           is_admin=session.get('is_admin', False), 
+                           is_kb_approver=session.get('is_kb_approver', False),
+                           approveCount=approveCount, rejectCount=rejectCount, 
+                           totalCount=totalCount, pendingCount=pendingCount)
 
-# EDIT REJECTED ARTICLE
 @app.route('/edit/<int:article_id>', methods=['GET', 'POST'])
 def edit_article(article_id):
     if 'cn' not in session:
         return redirect(url_for('login'))
 
-    # Fetch the article from the database
     cursor.execute("SELECT * FROM ApproveKBArticle WHERE id = %s", (article_id,))
     article = cursor.fetchone()
-    # Check if the article exists and is rejected
-    if not article or article[6] != 'rejected':  # Assuming status is at index 6
+
+    if not article or article[6] != 'rejected':
         return redirect(url_for('my_articles'))
 
     if request.method == 'POST':
@@ -502,36 +537,46 @@ def edit_article(article_id):
         description = request.form['description']
         url = request.form['url']
         file = request.files['file']
-        # Handle file upload
-        filename = article[5]  # Assuming filename is at index 5
+
+        filename = article[5]  # Keep old filename by default
         if file and file.filename != '':
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
-        # Update the article in the database with status as 'Pending'
+
         cursor.execute("""
             UPDATE ApproveKBArticle 
             SET title = %s, description = %s, url = %s, filename = %s, status = 'Pending', rejection_comment = NULL
             WHERE id = %s
         """, (title, description, url, filename, article_id))
         db.commit()
-        # Redirect to the user's articles page
-        return redirect(url_for('my_articles'))
-    # Render the edit form with the article data
-    return render_template('edit.html', article=article)
+        flash("✅ Article Updated Successfully!", "success")
+        return redirect(url_for('pending_articles'))
+
+    return render_template('edit_modal_content.html', article=article)
+
 
 # SEARCH ARTICLES
 def search_articles(query):
     cursor.execute("""
-        SELECT id, title, description
+        SELECT id, title, description, article_id_custom
         FROM ApproveKBArticle
         WHERE status = 'approved'
-        AND MATCH(title, description) AGAINST (%s IN NATURAL LANGUAGE MODE)
-        ORDER BY MATCH(title, description) AGAINST (%s IN NATURAL LANGUAGE MODE) DESC
+        AND (
+            MATCH(title, description) AGAINST (%s IN NATURAL LANGUAGE MODE)
+            OR article_id_custom LIKE %s
+        )
+        ORDER BY
+            CASE
+                WHEN article_id_custom LIKE %s THEN 1
+                ELSE 0
+            END DESC,
+            MATCH(title, description) AGAINST (%s IN NATURAL LANGUAGE MODE) DESC
         LIMIT 20
-    """, (query, query))
+    """, (query, f"%{query}%", f"%{query}%", query))
+    
     results = cursor.fetchall()
-    return [{'id': row[0], 'title': row[1]} for row in results]
+    return [{'id': row[0], 'title': row[1], 'article_id_custom': row[3]} for row in results]
 
 @app.route('/search')
 def search():
@@ -558,6 +603,9 @@ def view_article(article_id):
 # VIEW MY ARTICLE(FROM SEARCH)
 @app.route('/view_myarticle/<int:article_id>')
 def view_myarticle(article_id):
+    cn_name = session.get('cn', None)
+    if not cn_name:
+        return redirect(url_for('login'))
     if 'cn' not in session:
         return redirect(url_for('login'))
 
@@ -566,8 +614,20 @@ def view_myarticle(article_id):
 
     if not article:
         return redirect(url_for('my_articles')) 
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (cn_name,))
+    approveCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (cn_name,))
+    rejectCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s", (cn_name,))
+    totalCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (cn_name,))
+    pendingCount = cursor.fetchone()[0]
     # Render the edit form with the article data
-    return render_template('view_myarticle.html', article=article)
+    return render_template('view_myarticle.html', article=article, name=cn_name, 
+                           is_admin=session.get('is_admin', False), 
+                           is_kb_approver=session.get('is_kb_approver', False),
+                           approveCount=approveCount, rejectCount=rejectCount, 
+                           totalCount=totalCount, pendingCount=pendingCount)
 
 @app.route('/get_next_article_id', methods=['POST'])
 def get_next_article_id():

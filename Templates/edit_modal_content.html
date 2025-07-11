@@ -1,0 +1,39 @@
+<!-- templates/edit_modal_content.html -->
+<form method="post" enctype="multipart/form-data" id="editForm" action="{{ url_for('edit_article', article_id=article[0]) }}">
+  {% if article[7] %}
+    <div class="alert alert-warning" role="alert">
+      <b>Rejection Comment:</b> {{ article[7] }}
+    </div>
+  {% endif %}
+
+  <div class="mb-3">
+    <label for="title" class="form-label"><b>Article Title</b></label>
+    <input type="text" class="form-control" id="title" name="title" value="{{ article[2] }}" required>
+  </div>
+
+  <div class="mb-3">
+    <label for="article_id" class="form-label fw-bold"><b>Article ID</b></label>
+    <input type="text" class="form-control" id="article_id" value="{{ article[9] }}" readonly>
+  </div>
+
+  <div class="mb-3">
+    <label for="description" class="form-label fw-bold"><b>Description</b></label>
+    <textarea class="form-control" id="description" name="description" rows="5">{{ article[3] }}</textarea>
+  </div>
+
+  <div class="mb-3">
+    <label for="url" class="form-label fw-bold"><b>URL (if anything related)</b></label>
+    <input type="url" class="form-control" id="url" name="url" value="{{ article[4] }}">
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label fw-bold"><b>Uploaded File</b></label><br>
+    <input type="file" class="form-control" id="file" name="file">
+    {% if article[5] %}
+      <a href="{{ url_for('view_pdf', filename=article[5]) }}" class="btn btn-outline-dark mt-2" target="_blank">{{ article[5] }}</a>
+    {% else %}
+      <p>NA</p>
+    {% endif %}
+  </div>
+  <button type="submit" class="btn btn-success">Submit Changes</button>
+</form>
