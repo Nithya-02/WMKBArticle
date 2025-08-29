@@ -1,6 +1,8 @@
 # Import necessary libraries
 from flask import *
 from ldap3 import *
+from collections import OrderedDict
+from datetime import datetime
 from werkzeug.utils import secure_filename
 import mysql.connector, os, secrets
 from flask_auditor import FlaskAuditor
@@ -32,7 +34,7 @@ def log_login_attempt():
         auditor.log(action_id=action, description=description)
 
 #AD Configuration
-AD_SERVER = 'ldap://192.168.86.209'   
+AD_SERVER = 'ldap://172.20.10.6'   
 AD_DOMAIN = 'ML.com' 
 ADMIN_GROUP = 'Enterprise Admins'
 
@@ -61,6 +63,23 @@ CREATE TABLE IF NOT EXISTS ApproveKBArticle (
 """)
 db.commit()
 
+cursor.execute(""" 
+CREATE TABLE IF NOT EXISTS KBApprovers ( 
+id INT AUTO_INCREMENT PRIMARY KEY, 
+username TEXT UNIQUE NOT NULL, 
+granted_at DATETIME DEFAULT CURRENT_TIMESTAMP 
+) 
+""") 
+db.commit() 
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS groups_kbarticle (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    group_name VARCHAR(255) UNIQUE NOT NULL
+)
+""")
+db.commit()
+
 ########################################### CONNECTION ROUTES(Login, Admin, Super Admin) ##############################################
 
 #Login - Connection
@@ -70,41 +89,90 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+
         user_dn = f"{AD_DOMAIN}\\{username}"
 
         try:
-            server = Server(AD_SERVER, get_info=ALL)
-            connection = Connection(server, user=user_dn, password=password, authentication=NTLM, auto_bind=True)
-            connection.search(search_base='DC=ML,DC=com', search_filter=f'(sAMAccountName={username})', attributes=['cn', 'memberOf'])
+            print(f"[INFO] Attempting login for: {user_dn}")
 
+            # Step 1: Connect to AD server
+            try:
+                server = Server(AD_SERVER, get_info=ALL)
+                print("[INFO] Created AD server object.")
+            except Exception as e:
+                print("[ERROR] Failed to create AD server object.")
+                raise RuntimeError(f"AD server connection error: {str(e)}")
+
+            # Step 2: Try binding
+            try:
+                connection = Connection(
+                    server,
+                    user=user_dn,
+                    password=password,
+                    authentication=NTLM,
+                    auto_bind=True
+                )
+                print("[INFO] Successfully bound to AD.")
+            except Exception as e:
+                print("[ERROR] Failed to bind to AD with given credentials.")
+                raise RuntimeError(f"AD bind error: {str(e)}")
+
+            # Step 3: Search for user in AD
+            try:
+                connection.search(
+                    search_base='DC=ML,DC=com',  # <-- kept from your first code
+                    search_filter=f'(sAMAccountName={username})',
+                    attributes=['cn', 'sAMAccountName', 'memberOf']
+                )
+                print("[INFO] AD search executed.")
+            except Exception as e:
+                print("[ERROR] AD search failed.")
+                raise RuntimeError(f"AD search error: {str(e)}")
+
+            # Step 4: Validate user existence
+            if not connection.entries:
+                print("[WARN] User not found in AD search results.")
+                message = "Login failed: User not found in AD."
+                return render_template('login.html', message=message)
+
+            # Step 5: Extract user info
             entry = connection.entries[0]
             cn = entry.cn.value
+            username = entry.sAMAccountName.value
             groups = entry.memberOf
-
             group_names = []
             is_admin = False
-            is_kb_approver = False
 
-            for dn in groups:
-                match = re.search(r'CN=([^,]+)', dn)
-                if match:
-                    group_name = match.group(1)
+            for g in groups:
+                if 'CN=' in g:
+                    group_name = g.split(',')[0].split('=')[1]
                     group_names.append(group_name)
-                    if group_name == 'Enterprise Admins':
+                    if group_name == ADMIN_GROUP:
                         is_admin = True
-                    elif group_name == 'KBApprove':
-                        is_kb_approver = True
 
+            # Step 6: Check KBApprovers table
+            try:
+                print(f"[INFO] Checking KBApprover DB for: {cn}")
+                cursor.execute("SELECT username FROM KBApprovers WHERE username = %s", (username,))
+                session['is_kb_approver'] = bool(cursor.fetchone())
+                print(f"[INFO] Is KB Approver: {session['is_kb_approver']}")
+            except Exception as e:
+                print("[ERROR] Database query failed for KBApprovers.")
+                raise RuntimeError(f"DB query error: {str(e)}")
+
+            # Step 7: Store session data
+            session['groups'] = group_names
             session['username'] = username
             session['cn'] = cn
             session['is_admin'] = is_admin
-            session['is_kb_approver'] = is_kb_approver
-            session['groups'] = group_names
 
+            print(f"[INFO] Login successful for {username}")
             return redirect(url_for('homepage'))
 
         except Exception as e:
-            message = "Failed to Login! Invalid AD credentials"
+            import traceback
+            traceback.print_exc()
+            message = f"Failed to Login! Error: {str(e)}"
 
     return render_template('login.html', message=message)
 
@@ -116,66 +184,15 @@ def admin():
     name = session['cn']
     if request.method == 'POST':
         action = request.form['action']
-        cn_name = session['cn']
-        title = request.form.get('title')
-        apname = request.form.get('apname')
         record_id = int(request.form['record_id'])
         rejection_comment = request.form.get('rejection_comment', '').strip()
 
         if action == 'approve':
             cursor.execute("UPDATE ApproveKBArticle SET status = 'approved', rejection_comment = NULL WHERE id = %s", (record_id,))
-            '''try:
-                msg = EmailMessage()
-                TO = ["test1@freesmtpservers.com"]
-                SUBJECT = f"Article Approved : {title}"
-                TEXT = f"""
-                <html>  
-                <body>
-                <p>Dear {apname},</p>
-                <p>Your Article <b>{title}</b> has been approved.</p>
-                <p>Thanks & Regards,</p>
-                <p>{cn_name}</p>
-                </body>
-                </html>
-                """
-                msg['Subject'] = SUBJECT
-                msg['From'] = FROM
-                msg['To'] = ', '.join(TO)
-                msg.set_content(TEXT, subtype="html")      
-                server = smtplib.SMTP(SMTP_Name, PORT)
-                server.send_message(msg)
-                server.quit()
-                print("✅ Article is approved and email sent to user.")
-            except Exception as e:
-                print("❌ Error sending email:", str(e))'''
+            message = "✅ Article Approved successfully!"
         elif action == 'reject':
             cursor.execute("UPDATE ApproveKBArticle SET status = 'rejected', rejection_comment = %s WHERE id = %s", (rejection_comment, record_id))
-            '''try:
-                msg = EmailMessage()
-                TO = ["test1@freesmtpservers.com"]
-                SUBJECT = f"Article Rejected : {title}"
-                TEXT = f"""
-                <html>  
-                <body>
-                <p>Dear {apname},</p>
-                <p>Your Article <b>{title}</b> has been rejected. Please find the below comments from Approver & Make the Necessary Changes.</p>
-                <p><strong>Rejection Comment:</strong> {rejection_comment}</p>
-                <p>If you have any questions, please feel free to reach out.</p>
-                <p>Thanks & Regards,</p>
-                <p>{cn_name}</p>
-                </body>
-                </html>
-                """
-                msg['Subject'] = SUBJECT
-                msg['From'] = FROM
-                msg['To'] = ', '.join(TO)
-                msg.set_content(TEXT, subtype="html")      
-                server = smtplib.SMTP(SMTP_Name, PORT)
-                server.send_message(msg)
-                server.quit()
-                print("✅ Article is rejected and email sent to user.")
-            except Exception as e:
-                print("❌ Error sending email:", str(e))'''
+            message = "❌ Article Rejected and reverted for changes!"
         db.commit()
 
     cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (name,))
@@ -190,6 +207,7 @@ def admin():
     records = cursor.fetchall()
 
     return render_template('admin.html', name=name, is_admin=session.get('is_admin', False), is_kb_approver=session.get('is_kb_approver', False),
+        message=message if 'message' in locals() else None,
         approveCount=approveCount,
         rejectCount=rejectCount,
         totalCount=totalCount,
@@ -197,117 +215,79 @@ def admin():
         records=records
     )
 
-# Configure super admin route
+@app.route('/grant_approver', methods=['POST'])
+def grant_approver():
+    if not session.get('is_admin'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+    cn_to_grant = request.form.get('user_cn', '').strip()
+    if not cn_to_grant:
+        return jsonify({'status': 'error', 'message': 'User CN required'}), 400
+    try:
+        cursor.execute("INSERT IGNORE INTO KBApprovers (username) VALUES (%s)", (cn_to_grant,))
+        db.commit()
+        return jsonify({'status': 'success', 'message': f'{cn_to_grant} granted approver'}), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/revoke_approver', methods=['POST'])
+def revoke_approver():
+    if not session.get('is_admin'):
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 403
+    cn_to_revoke = request.form.get('user_cn', '').strip()
+    if not cn_to_revoke:
+        return jsonify({'status': 'error', 'message': 'User CN required'}), 400
+    try:
+        cursor.execute("DELETE FROM KBApprovers WHERE username = %s", (cn_to_revoke,))
+        db.commit()
+        return jsonify({'status': 'success', 'message': f'{cn_to_revoke} revoked approver'}), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 @app.route('/grant_permissions', methods=['GET', 'POST'])
 def grant_permissions():
     if 'cn' not in session or not session.get('is_admin'):
         return redirect(url_for('login'))
     message = None
-    name = session['cn']
     if request.method == 'POST':
-        user_id = request.form.get('user_id')
         action = request.form.get('action')
-
-        if action == 'add':
-            try:
-                # Setup LDAP connection
-                server = Server(AD_SERVER, get_info=ALL)
-                conn = Connection(
-                    server,
-                    user='ML.com\\Administrator',
-                    password='Shannu@2007',
-                    authentication=NTLM,
-                    auto_bind=True
-                )
-
-                user_id = user_id.strip()
-                if not user_id:
-                    message = "User ID cannot be empty."
-                    return render_template('grant_permissions.html', message=message)
-
-                # Step 1: Search for user's DN using sAMAccountName
-                search_base = 'DC=ML,DC=com'
-                search_filter = f'(sAMAccountName={user_id})'
-                conn.search(search_base, search_filter, attributes=['distinguishedName'])
-
-                if not conn.entries:
-                    message = f"User with ID '{user_id}' not found in Active Directory."
-                else:
-                    user_dn = conn.entries[0].distinguishedName.value
-                    group_dn = f'CN=KBApprove,CN=Users,DC=ML,DC=com'
-
-                    # Step 2: Add user to the group
-                    conn.modify(group_dn, {'member': [(MODIFY_ADD, [user_dn])]})
-
-                    if conn.result['result'] == 0:
-                        message = f"✅ User {user_id} has been granted the KBApprover role."
-                    else:
-                        message = f"❌ Failed to add user {user_id} to the group. Error: {conn.result['description']}"
-
-                conn.unbind()
-
-            except Exception as e:
-                message = f"An error occurred: {str(e)}"
-
-        elif action == 'remove':
-            try:
-                # Setup LDAP connection
-                server = Server(AD_SERVER, get_info=ALL)
-                conn = Connection(
-                    server,
-                    user='ML.com\\Administrator',
-                    password='Shannu@2007',
-                    authentication=NTLM,
-                    auto_bind=True
-                )
-
-                user_id = user_id.strip()
-                if not user_id:
-                    message = "User ID cannot be empty."
-                    return render_template('grant_permissions.html', message=message)
-
-                # Step 1: Search for user's DN using sAMAccountName
-                search_base = 'DC=ML,DC=com'
-                search_filter = f'(sAMAccountName={user_id})'
-                conn.search(search_base, search_filter, attributes=['distinguishedName'])
-
-                if not conn.entries:
-                    message = f"❌ User with ID '{user_id}' not found in Active Directory."
-                else:
-                    user_dn = conn.entries[0].distinguishedName.value
-                    group_dn = f'CN=KBApprove,CN=Users,DC=ML,DC=com'
-
-                    # Step 2: Remove user from the group
-                    conn.modify(group_dn, {'member': [(MODIFY_DELETE, [user_dn])]})
-
-                    if conn.result['result'] == 0:
-                        message = f"✅ User {user_id}'s KBApprover role has been revoked."
-                    else:
-                        message = f"❌ Failed to remove user {user_id} from the group. Error: {conn.result['description']}"
-
-                conn.unbind()
-
-            except Exception as e:
-                message = f"An error occurred: {str(e)}"
-            pass
-    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (name,))
+        user_cn = request.form.get('user_id', '').strip()
+        try:
+            if action == 'add':
+                cursor.execute("INSERT IGNORE INTO KBApprovers (username) VALUES (%s)", (user_cn,))
+                db.commit()
+                message = f"✅ KB Article Approver Access GRANTED : {user_cn}"
+            elif action == 'remove':
+                cursor.execute("DELETE FROM KBApprovers WHERE username = %s", (user_cn,))
+                db.commit()
+                message = f"✅ KB Article Approver Access REVOKED : {user_cn}"
+            else:
+                message = "❌ Invalid action"
+            if 'cn' in session and session['cn'] == user_cn:
+                session['is_kb_approver'] = (action == 'add')
+        except Exception as e:
+            db.rollback()
+            message = f"❌ Error: {str(e)}"
+    # ... other counters omitted for brevity
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (session['cn'],))
     approveCount = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (name,))
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (session['cn'],))
     rejectCount = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s", (name,))
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s", (session['cn'],))
     totalCount = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (name,))
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (session['cn'],))
     pendingCount = cursor.fetchone()[0]
 
-    return render_template('grant_permissions.html', name=name, is_admin=session.get('is_admin', False), is_kb_approver=session.get('is_kb_approver', False),
-    approveCount=approveCount,
-    rejectCount=rejectCount,
-    totalCount=totalCount,
-    pendingCount=pendingCount,
-    message=message
-)
-
-
+    return render_template('grant_permissions.html',
+        name=session['cn'],
+        is_admin=True,
+        is_kb_approver=session.get('is_kb_approver', False),
+        approveCount=approveCount, rejectCount=rejectCount,
+        totalCount=totalCount, pendingCount=pendingCount,
+        message=message
+    )
 
 ########################################### ROUTES FOR HOMEPAGE AND ARTICLE MANAGEMENT ##############################################
 
@@ -318,14 +298,21 @@ def homepage():
         return redirect(url_for('login'))
 
     name = session['cn']
+    username = session['username']
     is_admin = session.get('is_admin', False)
-    is_kb_approver = session.get('is_kb_approver', False)
-    all_articles = []
 
+    # Check KBApprover flag
+    cursor.execute("SELECT username FROM KBApprovers WHERE username = %s", (username,))
+    is_kb_approver = cursor.fetchone() is not None
+    session['is_kb_approver'] = is_kb_approver
+
+    # Fetch all articles if admin or approver
+    all_articles = []
     if is_admin or is_kb_approver:
         cursor.execute("SELECT * FROM ApproveKBArticle")
         all_articles = cursor.fetchall()
     
+    # User article counts
     cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (name,))
     approveCount = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (name,))
@@ -334,9 +321,82 @@ def homepage():
     totalCount = cursor.fetchone()[0]
     cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (name,))
     pendingCount = cursor.fetchone()[0]
-    
-    return render_template('HomePage.html', name=name, is_admin=is_admin, is_kb_approver=is_kb_approver,records=all_articles, 
-                           approveCount=approveCount, rejectCount=rejectCount, 
+
+    # ✅ Use DB groups (not AD) for graphs
+    cursor.execute("SELECT group_name FROM groups_kbarticle ORDER BY group_name ASC")
+    group_names = [row[0] for row in cursor.fetchall()]
+
+    # ✅ Count articles per group (bar graph)
+    group_counts = []
+    for g in group_names:
+        cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE ADGroups = %s", (g,))
+        group_counts.append(cursor.fetchone()[0])
+
+    # ✅ Count articles per group member (pie/drilldown)
+    group_members_data = {}
+    for g in group_names:
+        cursor.execute("""
+            SELECT name, COUNT(*) 
+            FROM ApproveKBArticle 
+            WHERE ADGroups = %s 
+            GROUP BY name
+        """, (g,))
+        group_members_data[g] = cursor.fetchall()  # [(username, count), ...]
+
+    return render_template(
+        'HomePage.html',
+        name=name,
+        is_admin=is_admin,
+        is_kb_approver=is_kb_approver,
+        records=all_articles,
+        approveCount=approveCount,
+        rejectCount=rejectCount,
+        totalCount=totalCount,
+        pendingCount=pendingCount,
+        group_labels=group_names,
+        group_counts=group_counts,
+        group_members_data=group_members_data
+    )
+
+@app.route('/add_groups', methods=['GET', 'POST'])
+def add_groups():
+    if 'cn' not in session or not session.get('is_admin'):
+        return redirect(url_for('login'))
+    message = None
+    cn_name = session['cn']
+    if request.method == 'POST':
+        action = request.form.get('action')
+        group_name = request.form.get('groupname', '').strip()
+        try:
+            if action == 'add' and group_name:
+                cursor.execute("INSERT IGNORE INTO groups_kbarticle (group_name) VALUES (%s)", (group_name,))
+                db.commit()
+                message = f"✅ Group '{group_name}' added successfully!"
+            elif action == 'remove' and group_name:
+                cursor.execute("DELETE FROM groups_kbarticle WHERE group_name = %s", (group_name,))
+                db.commit()
+                message = f"❌ Group '{group_name}' removed successfully!"
+        except Exception as e:
+            db.rollback()
+            message = f"❌ Error: {str(e)}"
+    cursor.execute("SELECT group_name FROM groups_kbarticle ORDER BY group_name ASC")
+    groups = [row[0] for row in cursor.fetchall()]
+
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'approved'", (cn_name,))
+    approveCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'rejected'", (cn_name,))
+    rejectCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s", (cn_name,))
+    totalCount = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM ApproveKBArticle WHERE name = %s AND status = 'Pending'", (cn_name,))
+    pendingCount = cursor.fetchone()[0]
+
+    return render_template('add_groups.html', 
+                           name=session['cn'], 
+                           is_admin=session.get('is_admin', False),
+                           is_kb_approver=session.get('is_kb_approver', False),
+                           groups=groups,
+                           message=message, approveCount=approveCount, rejectCount=rejectCount,
                            totalCount=totalCount, pendingCount=pendingCount)
 
 ################################### ARTICLE MANAGEMENT ROUTES ###################################
@@ -348,7 +408,9 @@ def submit():
         return redirect(url_for('login'))
     
     cn_name = session['cn']
-    groups = session.get('groups', [])
+    cursor.execute("SELECT group_name FROM groups_kbarticle ORDER BY group_name ASC")
+    groups = [row[0] for row in cursor.fetchall()]
+    print("Available groups for submission:", groups)
     if request.method == 'POST':
         name = cn_name
         title = request.form['title']

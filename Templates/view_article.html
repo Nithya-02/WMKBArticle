@@ -1,7 +1,7 @@
 <div class="container">
         {% if article[7] %}
             <div class="alert alert-warning" role="alert">
-                <b> Rejection Comment: </b> {{ article[7] }}
+                <b> Comments By Manager: </b> {{ article[7] }}
             </div>
         {% endif %}
         <form action="/submit" method="post" enctype="multipart/form-data">

@@ -2,7 +2,7 @@
 <form method="post" enctype="multipart/form-data" id="editForm" action="{{ url_for('edit_article', article_id=article[0]) }}">
   {% if article[7] %}
     <div class="alert alert-warning" role="alert">
-      <b>Rejection Comment:</b> {{ article[7] }}
+      <b>Comments By Manager:</b> {{ article[7] }}
     </div>
   {% endif %}
 
@@ -30,10 +30,10 @@
     <label class="form-label fw-bold"><b>Uploaded File</b></label><br>
     <input type="file" class="form-control" id="file" name="file">
     {% if article[5] %}
-      <a href="{{ url_for('view_pdf', filename=article[5]) }}" class="btn btn-outline-dark mt-2" target="_blank">{{ article[5] }}</a>
+      <a href="{{ url_for('view_pdf', filename=article[5]) }}" class="link" target="_blank">{{ article[5] }}</a>
     {% else %}
       <p>NA</p>
     {% endif %}
   </div>
-  <button type="submit" class="btn btn-success">Submit Changes</button>
+  <button type="submit" class="btn btn-dark">Submit Changes</button>
 </form>
