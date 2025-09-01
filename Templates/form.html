@@ -130,11 +130,11 @@
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
                       <a class="btn px-0" href="{{ url_for('grant_permissions') }}"><i class="icon-user mr-2"></i> Grant Access</a>
                     </div>
-                    {% endif %}
-                    {% if is_admin or is_kb_approver %}
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
                       <a class="btn px-0" href="{{ url_for('add_groups') }}"><i class="icon-note mr-2"></i> Groups </a>
                     </div>
+                    {% endif %}
+                    {% if is_admin or is_kb_approver %}
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
                       <a class="btn px-0" href="{{ url_for('admin') }}"><i class="icon-speech mr-2"></i> Approve Articles</a>
                     </div>

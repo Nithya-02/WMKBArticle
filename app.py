@@ -370,12 +370,18 @@ def add_groups():
         try:
             if action == 'add' and group_name:
                 cursor.execute("INSERT IGNORE INTO groups_kbarticle (group_name) VALUES (%s)", (group_name,))
-                db.commit()
-                message = f"✅ Group '{group_name}' added successfully!"
+                if cursor.rowcount > 0:  # only inserted if new
+                    db.commit()
+                    message = f"✅ Group '{group_name}' added successfully!"
+                else:
+                    message = f"⚠️ Group '{group_name}' already exists!"
             elif action == 'remove' and group_name:
                 cursor.execute("DELETE FROM groups_kbarticle WHERE group_name = %s", (group_name,))
-                db.commit()
-                message = f"❌ Group '{group_name}' removed successfully!"
+                if cursor.rowcount > 0:
+                    db.commit()
+                    message = f"❌ Group '{group_name}' removed successfully!"
+                else:
+                    message = f"⚠️ Group '{group_name}' does not exist!"
         except Exception as e:
             db.rollback()
             message = f"❌ Error: {str(e)}"
@@ -426,7 +432,7 @@ def submit():
             file.save(filepath)
 
         # Generate custom article ID like HR-001
-        prefix = group[:3].upper()
+        prefix = group[:4].upper()
         cursor.execute("""
             SELECT COUNT(*) FROM ApproveKBArticle WHERE ADGroups LIKE %s
         """, (f'%{group}%',))

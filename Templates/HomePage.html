@@ -145,11 +145,11 @@
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
                       <a class="btn px-0" href="{{ url_for('grant_permissions') }}"><i class="icon-user mr-2"></i> Grant Access</a>
                     </div>
-                    {% endif %}
-                    {% if is_admin or is_kb_approver %}
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
                       <a class="btn px-0" href="{{ url_for('add_groups') }}"><i class="icon-note mr-2"></i> Groups </a>
                     </div>
+                    {% endif %}
+                    {% if is_admin or is_kb_approver %}
                     <div class="p-2 flex-fill text-center btn-wrapper quick-action-item">
                       <a class="btn px-0" href="{{ url_for('admin') }}"><i class="icon-speech mr-2"></i> Approve Articles</a>
                     </div>
@@ -343,36 +343,50 @@
           const groupData = JSON.parse(chartDom.dataset.groupMembers);
           const dropdown = document.getElementById('groupDropdown');
 
+          function showEmpty() {
+            myChart.clear(); // wipe everything
+            myChart.setOption({
+              title: {
+                text: 'No articles submitted in this group',
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: 'gray', fontSize: 18, fontWeight: 'bold' }
+              }
+            }, true); // notMerge: true
+          }
+
           function updateChart(selectedGroup) {
-            const rawData = groupData[selectedGroup] || [];
-            const members = rawData.map(item => item[0]); // usernames
-            const counts = rawData.map(item => item[1]); // counts
+            const rawData = Array.isArray(groupData[selectedGroup]) ? groupData[selectedGroup] : [];
+
+            // ✅ Show empty view only when there is truly no data
+            if (rawData.length === 0) {
+              showEmpty();
+              return;
+            }
+
+            const members = rawData.map(item => String(item[0]));
+            const counts  = rawData.map(item => Number(item[1]) || 0);
 
             const option = {
+              // Hide any previous "No data" title explicitly
+              title: { show: false },
+
               tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
               grid: { left: '10%', right: '4%', bottom: '3%', containLabel: true },
-              yAxis: {
-                type: 'value',
-                nameTextStyle: { fontStyle: 'italic', fontWeight: 'bold' }
-              },
+              yAxis: { type: 'value', nameTextStyle: { fontStyle: 'italic', fontWeight: 'bold' } },
               xAxis: {
                 type: 'category',
                 nameTextStyle: { fontStyle: 'italic', fontWeight: 'bold' },
                 data: members,
                 axisLabel: {
-                  interval: 0, 
-                  rotate: 0,       
+                  interval: 0,
+                  rotate: 0,
                   formatter: function (value) {
-                    if (value.includes(" ")) {
-                      return value.split(" ").join("\n");
-                    }
-
-                    // Otherwise keep your length-based wrapping
+                    if (value.includes(' ')) return value.split(' ').join('\n');
                     const maxLength = 10;
-                    if (value.length > maxLength) {
-                      return value.match(new RegExp('.{1,' + maxLength + '}', 'g')).join('\n');
-                    }
-                    return value;
+                    return value.length > maxLength
+                      ? value.match(new RegExp('.{1,' + maxLength + '}', 'g')).join('\n')
+                      : value;
                   }
                 }
               },
@@ -381,24 +395,30 @@
                 type: 'bar',
                 data: counts,
                 barWidth: '50%',
-                itemStyle: {
-                  color: '#F06418',
-                }
+                itemStyle: { color: '#F06418' }
               }]
             };
 
-            myChart.setOption(option);
+            // ✅ Replace previous options so the "No data" title doesn't linger
+            myChart.setOption(option, true); // notMerge = true
           }
 
           dropdown.addEventListener('change', function () {
             updateChart(this.value);
           });
+
           // Initialize chart with the first group
           if (dropdown.value) {
             updateChart(dropdown.value);
+          } else {
+            showEmpty();
           }
+
+          // Optional: keep chart responsive
+          window.addEventListener('resize', () => myChart.resize());
         });
       </script>
+
     <!-- End custom js for this page -->
   </body>
 </html>
